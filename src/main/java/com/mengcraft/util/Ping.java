@@ -27,6 +27,7 @@ public final class Ping {
     public static PingResponse query(String host, int port, int timeout) {
         PingResponse response = new PingResponse();
         try (Socket socket = new Socket()) {
+            socket.setSoTimeout(timeout);
             socket.connect(new InetSocketAddress(host, port), timeout);
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             DataInputStream in = new DataInputStream(socket.getInputStream());
@@ -48,12 +49,12 @@ public final class Ping {
         return response;
     }
 
-    private static int readVarInt(DataInput var0) throws IOException {
+    private static int readVarInt(DataInput input) throws IOException {
         int result = 0;
         int bit = 0;
         byte b;
         do {
-            b = var0.readByte();
+            b = input.readByte();
             result |= (b & 127) << bit++ * 7;
             if (bit > 5) {
                 throw new RuntimeException("VarInt too big");
