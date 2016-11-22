@@ -3,7 +3,6 @@ package com.mengcraft.util;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SingleExecutorTest {
 
     @Test
-    public void mainTest() throws Exception {
+    public void execute() throws Exception {
         ExecutorService pool = new SingleExecutor();
         AtomicBoolean b = new AtomicBoolean();
         pool.execute(() -> b.set(true));
