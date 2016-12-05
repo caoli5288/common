@@ -31,6 +31,18 @@ public final class SimpleList {
         return count;
     }
 
+    public static <E> String join(Collection<E> i, String separator) {
+        String out = "";
+        Iterator<E> it = i.iterator();
+        while (it.hasNext()) {
+            out += it.next();
+            if (it.hasNext()) {
+                out += separator;
+            }
+        }
+        return out;
+    }
+
     public static <E> void forEach(Collection<E> i, Predicate<E> p, Consumer<E> c) {
         for (E e : i) {
             if (p.test(e)) {
