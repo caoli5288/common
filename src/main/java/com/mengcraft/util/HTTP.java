@@ -23,26 +23,18 @@ public class HTTP {
 
     private static ExecutorService pool;
 
-    private static void initPool() {
+    private synchronized static void buildPool() {
         if (pool == null) {
-            synchronized (HTTP.class) {
-                if (pool == null) {
-                    buildPool();
-                }
+            String size = System.getProperty("i5mc.http.pool.size", "-1");
+            int i;
+            try {
+                i = Integer.parseInt(size);
+            } catch (NumberFormatException e) {
+                i = -1;
             }
+            pool = (i < 1 ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue<>())
+                    : new ThreadPoolExecutor(0, i, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>()));
         }
-    }
-
-    private static void buildPool() {
-        String size = System.getProperty("i5mc.http.pool.size", "-1");
-        int i;
-        try {
-            i = Integer.parseInt(size);
-        } catch (NumberFormatException e) {
-            i = -1;
-        }
-        pool = (i < 1 ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue<>())
-                : new ThreadPoolExecutor(0, i, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>()));
     }
 
     public static class Task implements Callable<HTTPResponse> {
@@ -103,14 +95,20 @@ public class HTTP {
         return i == null;
     }
 
+    private static void initPool() {
+        if (pool == null) {
+            buildPool();
+        }
+    }
+
     public static Future<HTTPResponse> open(HTTPRequest request) {
-        valid(!nil(request), "null");
+        valid(!nil(request), "open " + request);
         initPool();
         return pool.submit(new Task(request));
     }
 
     public static void open(HTTPRequest request, HTTPCallback callback) {
-        valid(!(nil(request) || nil(callback)), "null");
+        valid(!(nil(request) || nil(callback)), "open " + request + " " + callback);
         initPool();
         pool.execute(() -> {
             Task task = new Task(request);
