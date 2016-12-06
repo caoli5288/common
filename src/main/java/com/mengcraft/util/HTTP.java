@@ -1,12 +1,13 @@
 package com.mengcraft.util;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.HttpURLConnection;
+import java.net.ProtocolException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -32,7 +33,8 @@ public class HTTP {
             } catch (NumberFormatException e) {
                 i = -1;
             }
-            pool = (i < 1 ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue<>())
+            pool = (i < 1
+                    ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue<>())
                     : new ThreadPoolExecutor(0, i, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>()));
         }
     }
@@ -48,17 +50,12 @@ public class HTTP {
         @Override
         public HTTPResponse call() throws Exception {
             URL url = new URL(request.getAddress());
-            HttpURLConnection connection = HttpURLConnection.class.cast(url.openConnection());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-            HTTPMethod method = request.getMethod();
-            connection.setRequestMethod(method.name());
-
-            Map<String, String> header = request.getHeader();
-            if (!nil(header)) {
-                header.forEach((key, value) -> connection.addRequestProperty(key, value));
-            }
+            init(connection);
 
             String content = request.getContent();
+
             if (!(nil(content) || content.isEmpty())) {
                 connection.setDoOutput(true);
             }
@@ -66,32 +63,48 @@ public class HTTP {
             connection.connect();
 
             if (connection.getDoOutput()) {
-                OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
+                Writer writer = new OutputStreamWriter(connection.getOutputStream());
                 writer.write(content);
                 writer.flush();
                 writer.close();
             }
 
+            return read(connection);
+        }
+
+        private HTTPResponse read(HttpURLConnection connection) throws IOException {
             int code = connection.getResponseCode();
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            List<String> response = new ArrayList<>();
+            String separator = System.getProperty("line.separator");
+            StringBuilder b = new StringBuilder();
             String line;
             while (!nil(line = reader.readLine())) {
-                response.add(line);
+                if (b.length() > 0) b.append(separator);
+                b.append(line);
             }
             reader.close();
 
-            return new HTTPResponse(code, SimpleList.join(response, System.getProperty("line.separator")));
+            return new HTTPResponse(request, code, b.toString());
+        }
+
+        private void init(HttpURLConnection connection) throws ProtocolException {
+            HTTPMethod method = request.getMethod();
+            connection.setRequestMethod(method.name());
+
+            Map<String, String> header = request.getHeader();
+            if (!nil(header)) {
+                header.forEach((key, value) -> connection.addRequestProperty(key, value));
+            }
         }
 
     }
 
-    private static void valid(boolean b, String message) {
+    static void valid(boolean b, String message) {
         if (!b) throw new RuntimeException(message);
     }
 
-    private static boolean nil(Object i) {
+    static boolean nil(Object i) {
         return i == null;
     }
 

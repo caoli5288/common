@@ -1,29 +1,21 @@
 package com.mengcraft.util;
 
-import java.util.HashMap;
 import java.util.Map;
+
+import static com.mengcraft.util.HTTP.nil;
 
 /**
  * Created on 16-12-5.
  */
 public class HTTPRequest {
 
-    private Map<String, String> header;
+    private HTTPHeader header = new HTTPHeader();
     private String content;
 
     private final String address;
     private HTTPMethod method;
 
-    public HTTPRequest(String address) {
-        this(address, HTTPMethod.GET);
-    }
-
-    public HTTPRequest(String address, HTTPMethod method) {
-        this.address = address;
-        this.method = method;
-    }
-
-    public Map<String, String> getHeader() {
+    public HTTPHeader getHeader() {
         return header;
     }
 
@@ -36,18 +28,18 @@ public class HTTPRequest {
     }
 
     public HTTPRequest setMethod(HTTPMethod method) {
-        if (method == null) throw new NullPointerException("method");
+        HTTP.valid(!nil(method), "null");
         this.method = method;
         return this;
     }
 
-    public HTTPRequest setHeader(Map<String, String> header) {
-        this.header = header;
+    public HTTPRequest setHeader(Map<String, String> m) {
+        header = new HTTPHeader(m);
         return this;
     }
 
-    public HTTPRequest addHeader(String key, String value) {
-        if (header == null) header = new HashMap<>();
+    public HTTPRequest setHeader(String key, String value) {
+        HTTP.valid(!(nil(key) || nil(value)), "null");
         header.put(key, value);
         return this;
     }
@@ -57,9 +49,22 @@ public class HTTPRequest {
     }
 
     public HTTPRequest setContent(String content) {
-        if (content == null) throw new NullPointerException("content");
         this.content = content;
         return this;
+    }
+
+    HTTPRequest(String address, HTTPMethod method) {
+        this.address = address;
+        this.method = method;
+    }
+
+    public static HTTPRequest build(String address) {
+        return build(address, HTTPMethod.GET);
+    }
+
+    public static HTTPRequest build(String address, HTTPMethod method) {
+        HTTP.valid(!(nil(address) || nil(method)), "null");
+        return new HTTPRequest(address, method);
     }
 
 }

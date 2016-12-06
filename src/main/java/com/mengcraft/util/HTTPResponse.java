@@ -5,20 +5,31 @@ package com.mengcraft.util;
  */
 public class HTTPResponse {
 
-    private final int responseCode;
+    private final HTTPRequest request;
+    private final int response;
     private final String content;
 
-    HTTPResponse(int responseCode, String content) {
-        this.responseCode = responseCode;
+    HTTPResponse(HTTPRequest request, int response, String content) {
+        this.request = request;
+        this.response = response;
         this.content = content;
+    }
+
+    public HTTPRequest getRequest() {
+        return request;
     }
 
     public String getContent() {
         return content;
     }
 
-    public int getResponseCode() {
-        return responseCode;
+    public int getResponse() {
+        return response;
+    }
+
+    @Override
+    public String toString() {
+        return Integer.toString(response) + " " + content;
     }
 
 }
