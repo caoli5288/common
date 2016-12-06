@@ -14,17 +14,12 @@ package com.mengcraft.util;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-
-/**
+ * <p>
  * Provides encoding of raw bytes to base64-encoded characters, and decoding of
  * base64 characters to raw bytes.
  *
  * @author Kevin Kelley (kelley@ruralnet.net)
  * @version 1.3
- * @date 06 August 1998
- * @modified 14 February 2000
- * @modified 22 September 2000
  */
 public final class Base64 {
 
@@ -95,6 +90,14 @@ public final class Base64 {
             out[index] = ALPHABET[val & 0x3F];
         }
         return out;
+    }
+
+    public static String decode(String input) {
+        return new String(decode(input.toCharArray()));
+    }
+
+    public static String encode(String input) {
+        return new String(encode(input.getBytes()));
     }
 
     /**
