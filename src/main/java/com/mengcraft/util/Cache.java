@@ -1,16 +1,15 @@
 package com.mengcraft.util;
 
-import java.util.function.Supplier;
-
 /**
  * Created on 16-5-23.
  */
 public class Cache<T> {
 
     private final Supplier<T> fetcher;
-    private final long expire;
 
+    private final long expire;
     private T obj;
+
     private long last;
 
     public Cache(Supplier<T> fetcher) {
@@ -46,4 +45,9 @@ public class Cache<T> {
         return expire;
     }
 
+}
+
+interface Supplier<T> {// 1.7 compatible
+
+    T get();
 }
