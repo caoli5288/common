@@ -5,8 +5,12 @@ package com.mengcraft.util;
  */
 public class Cache<T> {
 
-    private final Supplier<T> fetcher;
+    public interface Supplier<T> {// 1.7 compatible
 
+        T get();
+    }
+
+    private final Supplier<T> fetcher;
     private final long expire;
     private T obj;
 
@@ -47,7 +51,3 @@ public class Cache<T> {
 
 }
 
-interface Supplier<T> {// 1.7 compatible
-
-    T get();
-}
