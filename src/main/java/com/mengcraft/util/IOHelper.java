@@ -17,7 +17,7 @@ import java.io.Writer;
 /**
  * Created on 16-1-17.
  */
-public final class ReadWriteUtil {
+public final class IOHelper {
 
     public static BufferedWriter toBuffered(OutputStream stream) {
         return toBuffered(toWriter(stream));

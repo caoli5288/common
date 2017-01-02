@@ -11,7 +11,7 @@ import java.util.function.Predicate;
 /**
  * Created on 16-3-9.
  */
-public final class SimpleList {
+public final class ListHelper {
 
     @SuppressWarnings("unchecked")
     public static <E> List<E> concat(Collection<E> i, Collection<E> i1) {
