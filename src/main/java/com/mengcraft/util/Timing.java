@@ -15,6 +15,8 @@ public class Timing {
 
     private static class MXTiming extends HashMap<String, Timing> {
 
+        private final static MXTiming TIMING = new MXTiming();
+
         private Timing look(String key) {
             return computeIfAbsent(key, k -> new Timing(key));
         }
@@ -35,7 +37,7 @@ public class Timing {
             log.log(Level.SEVERE, "timing", e);
         }
         time = System.nanoTime() - time;
-        Timing timing = TIMING.look(key);
+        Timing timing = MXTiming.TIMING.look(key);
         timing.add(time);
         return timing;
     }
@@ -57,7 +59,5 @@ public class Timing {
     private long max;
     private long i;
     private long latest;
-
-    private final static MXTiming TIMING = new MXTiming();
 
 }
