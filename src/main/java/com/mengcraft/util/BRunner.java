@@ -8,7 +8,7 @@ import org.bukkit.scheduler.BukkitRunnable;
  */
 public class BRunner {
 
-    public static class Runner extends BukkitRunnable {
+    public static class Runner extends BukkitRunnable implements ICancellable {
 
         private final IRunner r;
 
@@ -22,9 +22,14 @@ public class BRunner {
         }
     }
 
+    public interface ICancellable {
+
+        void cancel();
+    }
+
     public interface IRunner {
 
-        void run(Runner r);
+        void run(ICancellable r);
     }
 
     public static int run(Plugin plugin, int i, int repeat, IRunner r) {
