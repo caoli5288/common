@@ -42,13 +42,13 @@ public class PluginHelper {
 
         @Override
         public boolean execute(CommandSender sender, String l, String[] i) {
-            return testPermission(sender) && exec.exec(sender, ImmutableList.copyOf(i));
+            return testPermission(sender) && exec.exec(sender, l, ImmutableList.copyOf(i));
         }
     }
 
     public interface IExec {
 
-        boolean exec(CommandSender sender, List<String> list);
+        boolean exec(CommandSender sender, String command, List<String> list);
     }
 
     public interface ICancellable {
@@ -84,6 +84,10 @@ public class PluginHelper {
         } catch (ReflectiveOperationException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void addExecutor(Plugin plugin, String command, IExec exec) {
+        addExecutor(plugin, command, null, exec);
     }
 
     public static void addExecutor(Plugin plugin, String command, String permission, IExec exec) {
