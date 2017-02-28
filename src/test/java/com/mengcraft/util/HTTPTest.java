@@ -18,7 +18,9 @@ public class HTTPTest {
 //        request.setHeader(map);
 
         HTTP.open(request, (e, response) -> {
-//            ...
+            if (e == null) {
+                Assert.assertEquals(response.getResponse(), 200); // 单元测试里面可能会错过回调
+            }
         });
 
         HTTPResponse response = HTTP.open(request).get();

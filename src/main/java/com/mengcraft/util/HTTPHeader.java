@@ -10,10 +10,9 @@ public class HTTPHeader extends HashMap<String, String> {
 
     @Override
     public String toString() {
-        String separator = System.getProperty("line.separator");
         StringBuilder b = new StringBuilder();
         for (Entry<String, String> e : entrySet()) {
-            if (b.length() > 0) b.append(separator);
+            if (b.length() > 0) b.append(HTTP.SEPARATOR);
             b.append(e.getKey());
             b.append(": ");
             b.append(e.getValue());
@@ -21,14 +20,19 @@ public class HTTPHeader extends HashMap<String, String> {
         return b.toString();
     }
 
+    @Override
+    public String put(String key, String value) {
+        return HTTP.nil(value) ? super.remove(key) : super.put(key, value);
+    }
+
     HTTPHeader() {
         super();
         put(USER_AGENT, "Mozilla/5.0 I5MC");
     }
 
-    HTTPHeader(Map<String, String> m) {
+    HTTPHeader(Map<String, String> handle) {
         this();
-        if (!HTTP.nil(m)) putAll(m);
+        putAll(handle);
     }
 
     public static final String ACCEPT = "Accept";

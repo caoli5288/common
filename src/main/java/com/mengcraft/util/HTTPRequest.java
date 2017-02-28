@@ -33,13 +33,14 @@ public class HTTPRequest {
         return this;
     }
 
-    public HTTPRequest setHeader(Map<String, String> m) {
-        header = new HTTPHeader(m);
+    public HTTPRequest setHeader(Map<String, String> input) {
+        HTTP.valid(!nil(input), "nil");
+        header = new HTTPHeader(input);
         return this;
     }
 
     public HTTPRequest setHeader(String key, String value) {
-        HTTP.valid(!(nil(key) || nil(value)), "null");
+        HTTP.valid(!nil(key), "null");
         header.put(key, value);
         return this;
     }
@@ -53,7 +54,7 @@ public class HTTPRequest {
         return this;
     }
 
-    HTTPRequest(String address, HTTPMethod method) {
+    private HTTPRequest(String address, HTTPMethod method) {
         this.address = address;
         this.method = method;
     }
