@@ -3,7 +3,6 @@ package com.mengcraft.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -33,7 +32,7 @@ public class HTTP {
                 i = -1;
             }
             pool = (i < 1
-                    ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue<>())
+                    ? new ThreadPoolExecutor(0, Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>())
                     : new ThreadPoolExecutor(0, i, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>()));
         }
     }
@@ -42,6 +41,13 @@ public class HTTP {
         if (pool == null) {
             buildPool();
         }
+    }
+
+    public static ExecutorService setPool(ExecutorService pool) {
+        valid(!nil(pool), "nil");
+        ExecutorService b = HTTP.pool;
+        HTTP.pool = pool;
+        return b;
     }
 
     public static Future<HTTPResponse> open(HTTPRequest request) {
