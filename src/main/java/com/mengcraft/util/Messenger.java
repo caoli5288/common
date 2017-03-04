@@ -20,63 +20,65 @@ public class Messenger {
         this.plugin = plugin;
     }
 
-    public void send(CommandSender receive, String path) {
-        send(receive, path, "");
+    private String path(String path) {
+        return PREFIX + path;
     }
 
-    public void send(CommandSender receive, String path, String input) {
-        val found = find(path, input);
-        if (found.indexOf('\n') == -1) {
-            sendLine(receive, found);
-        } else {
-            for (String line : found.split("\n")) {
-                sendLine(receive, line);
+    private String multi(Object found) {
+        val input = (List) found;
+        val b = new StringBuilder();
+        int size = input.size();
+        for (int l = 0; l < size; l++) {
+            if (l > 0) {
+                b.append('\n');
             }
+            b.append(input.get(l));
         }
+        return b.toString();
     }
 
-    public void sendLine(CommandSender receive, String line) {
-        receive.sendMessage(ChatColor.translateAlternateColorCodes('&', line));
+    public String find(String path, String input) {
+        val found = plugin.getConfig().get(path(path), null);
+        if (found == null) {
+            if (input == null || input.isEmpty()) return path;
+            if (input.indexOf('\n') == -1) {
+                plugin.getConfig().set(path(path), input);
+                plugin.saveConfig();
+            } else {
+                plugin.getConfig().set(path(path), Arrays.asList(input.split("\n")));
+                plugin.saveConfig();
+            }
+            return input;
+        } else if (found instanceof List) {
+            return multi(found);
+        }
+        return found.toString();
     }
 
     public String find(String path) {
         return find(path, "");
     }
 
-    public String find(String path, String input) {
-        val found = plugin.getConfig().get(real(path), null);
-        if (found == null) {
-            if (input == null || input.isEmpty()) return path;
-            return find__(path, input);
-        } else if (found instanceof List) {
-            return find_((List) found);
-        }
-        return found.toString();
+    public void sendLine(CommandSender receive, String line) {
+        receive.sendMessage(ChatColor.translateAlternateColorCodes('&', line));
     }
 
-    private String find_(List found) {
-        val b = new StringBuilder();
-        val i = found.iterator();
-        while (i.hasNext()) {
-            b.append(i.next());
-            if (i.hasNext()) b.append('\n');
-        }
-        return b.toString();
-    }
-
-    private String find__(String path, String input) {
-        if (input.indexOf('\n') == -1) {
-            plugin.getConfig().set(real(path), input);
-            plugin.saveConfig();
+    public void sendMessage(CommandSender receive, String message) {
+        if (message.indexOf('\n') == -1) {
+            sendLine(receive, message);
         } else {
-            plugin.getConfig().set(real(path), Arrays.asList(input.split("\n")));
-            plugin.saveConfig();
+            for (String line : message.split("\n")) {
+                sendLine(receive, line);
+            }
         }
-        return input;
     }
 
-    private String real(String path) {
-        return PREFIX + path;
+    public void send(CommandSender receive, String path, String input) {
+        sendMessage(receive, find(path, input));
+    }
+
+    public void send(CommandSender receive, String path) {
+        send(receive, path, "");
     }
 
 }
