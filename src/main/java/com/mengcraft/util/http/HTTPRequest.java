@@ -1,8 +1,6 @@
-package com.mengcraft.util;
+package com.mengcraft.util.http;
 
 import java.util.Map;
-
-import static com.mengcraft.util.HTTP.nil;
 
 /**
  * Created on 16-12-5.
@@ -28,21 +26,26 @@ public class HTTPRequest {
     }
 
     public HTTPRequest setMethod(HTTPMethod method) {
-        HTTP.valid(!nil(method), "null");
+        HTTP.valid(!HTTP.nil(method), "null");
         this.method = method;
         return this;
     }
 
     public HTTPRequest setHeader(Map<String, String> input) {
-        HTTP.valid(!nil(input), "nil");
+        HTTP.valid(!HTTP.nil(input), "nil");
         header = new HTTPHeader(input);
         return this;
     }
 
-    public HTTPRequest setHeader(String key, String value) {
-        HTTP.valid(!nil(key), "null");
-        header.put(key, value);
+    public HTTPRequest setHeader(String key, Object value) {
+        HTTP.valid(!HTTP.nil(key), "null");
+        header.add(key, value.toString());
         return this;
+    }
+
+    public HTTPRequest setContentType(HTTPHeader.ContentType type) {
+        HTTP.valid(!HTTP.nil(type), "nil");
+        return setHeader(HTTPHeader.CONTENT_TYPE, type);
     }
 
     public String getContent() {
@@ -64,7 +67,7 @@ public class HTTPRequest {
     }
 
     public static HTTPRequest build(String address, HTTPMethod method) {
-        HTTP.valid(!(nil(address) || nil(method)), "null");
+        HTTP.valid(!(HTTP.nil(address) || HTTP.nil(method)), "null");
         return new HTTPRequest(address, method);
     }
 

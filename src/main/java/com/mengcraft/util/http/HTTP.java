@@ -1,4 +1,4 @@
-package com.mengcraft.util;
+package com.mengcraft.util.http;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;

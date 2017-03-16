@@ -1,4 +1,4 @@
-package com.mengcraft.util;
+package com.mengcraft.util.http;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,9 +11,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Map;
 import java.util.concurrent.Callable;
-
-import static com.mengcraft.util.HTTP.SEPARATOR;
-import static com.mengcraft.util.HTTP.nil;
 
 /**
  * Created on 17-3-1.
@@ -38,7 +35,7 @@ public class HTTPCallable implements Callable<HTTPResponse> {
 
         String content = request.getContent();
 
-        if (!(nil(content) || content.isEmpty())) conn.setDoOutput(true);
+        if (!(HTTP.nil(content) || content.isEmpty())) conn.setDoOutput(true);
 
         conn.connect();
 
@@ -58,8 +55,8 @@ public class HTTPCallable implements Callable<HTTPResponse> {
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
         StringBuilder b = new StringBuilder();
         String line;
-        while (!nil(line = reader.readLine())) {
-            if (b.length() > 0) b.append(SEPARATOR);
+        while (!HTTP.nil(line = reader.readLine())) {
+            if (b.length() > 0) b.append(HTTP.SEPARATOR);
             b.append(line);
         }
         reader.close();
@@ -72,7 +69,7 @@ public class HTTPCallable implements Callable<HTTPResponse> {
         connection.setRequestMethod(method.name());
 
         Map<String, String> header = request.getHeader();
-        if (!nil(header)) {
+        if (!HTTP.nil(header)) {
             header.forEach((key, value) -> connection.addRequestProperty(key, value));
         }
     }

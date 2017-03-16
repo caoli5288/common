@@ -1,4 +1,4 @@
-package com.mengcraft.util;
+package com.mengcraft.util.http;
 
 /**
  * Created on 16-12-5.

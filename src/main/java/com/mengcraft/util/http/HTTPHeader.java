@@ -1,4 +1,4 @@
-package com.mengcraft.util;
+package com.mengcraft.util.http;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +7,23 @@ import java.util.Map;
  * Created on 16-12-6.
  */
 public class HTTPHeader extends HashMap<String, String> {
+
+    public enum ContentType {
+
+        JSON("application/json"),
+        TEXT("text/html");
+
+        private final String type;
+
+        ContentType(String type) {
+            this.type = type;
+        }
+
+        @Override
+        public String toString() {
+            return type;
+        }
+    }
 
     @Override
     public String toString() {
@@ -20,14 +37,14 @@ public class HTTPHeader extends HashMap<String, String> {
         return b.toString();
     }
 
-    @Override
-    public String put(String key, String value) {
-        return HTTP.nil(value) ? super.remove(key) : super.put(key, value);
+    public String add(String key, String value) {
+        return HTTP.nil(value) ? remove(key) : put(key, value);
     }
 
     HTTPHeader() {
         super();
         put(USER_AGENT, "Mozilla/5.0 I5MC");
+        put(CONTENT_TYPE, ContentType.TEXT.toString());
     }
 
     HTTPHeader(Map<String, String> handle) {
@@ -42,5 +59,4 @@ public class HTTPHeader extends HashMap<String, String> {
     public static final String COOKIE = "Cookie";
     public static final String CONTENT_TYPE = "Content-Type";
     public static final String USER_AGENT = "User-Agent";
-
 }
