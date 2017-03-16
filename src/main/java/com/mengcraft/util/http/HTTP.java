@@ -1,18 +1,25 @@
 package com.mengcraft.util.http;
 
-import java.util.concurrent.ExecutorService;
+import lombok.val;
+
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.Thread.sleep;
+
 /**
  * Created on 16-12-5.
  */
-public class HTTP {
+public final class HTTP {
 
-    public static final String SEPARATOR = System.getProperty("line.separator");
-    private static ExecutorService pool;
+    static final String SEPARATOR = System.getProperty("line.separator");
+    static ThreadPoolExecutor pool;
+
+    HTTP() {// static class
+        throw new IllegalStateException("static class");
+    }
 
     static void valid(boolean b, String message) {
         if (!b) throw new RuntimeException(message);
@@ -23,7 +30,7 @@ public class HTTP {
     }
 
     private synchronized static void buildPool() {
-        if (pool == null) {
+        if (nil(pool)) {
             String size = System.getProperty("i5mc.http.pool.size", "-1");
             int i;
             try {
@@ -38,16 +45,37 @@ public class HTTP {
     }
 
     private static void initPool() {
-        if (pool == null) {
+        if (nil(pool)) {
             buildPool();
         }
     }
 
-    public static ExecutorService setPool(ExecutorService pool) {
+    public static ThreadPoolExecutor setPool(ThreadPoolExecutor pool) {
         valid(!nil(pool), "nil");
-        ExecutorService b = HTTP.pool;
+        val b = HTTP.pool;
         HTTP.pool = pool;
         return b;
+    }
+
+    /**
+     * Blocking until pool flushed.
+     *
+     * @param time wait time
+     * @return {@code true} if pool flushed without wait timeout
+     * @throws InterruptedException thrown if interrupted
+     */
+    public static boolean flush(long time) throws InterruptedException {
+        val pool = HTTP.pool;
+        if (nil(pool) || pool.getQueue().isEmpty()) return true;
+        for (long i = 1; i < time; i++) {
+            sleep(1);
+            if (pool.getQueue().isEmpty()) return true;
+        }
+        return false;// 在考虑用阻塞实现是不是友好一些
+    }
+
+    public static boolean flush() throws InterruptedException {
+        return flush(TimeUnit.MINUTES.toMillis(1));
     }
 
     public static Future<HTTPResponse> open(HTTPRequest request) {
@@ -60,9 +88,9 @@ public class HTTP {
         valid(!(nil(request) || nil(callback)), "open " + request + " " + callback);
         initPool();
         pool.execute(() -> {
-            HTTPCallable call = new HTTPCallable(request);
+            val run = new HTTPCallable(request);
             try {
-                HTTPResponse response = call.call();
+                val response = run.call();
                 callback.done(null, response);
             } catch (Exception e) {
                 callback.done(e, null);

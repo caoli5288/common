@@ -10,24 +10,19 @@ public class HTTPTest {
 
     @Test
     public void open() throws Exception {
-//        HTTPRequest request = HTTPRequest.build("https://www.baidu.com");
-//        request.setHeader(HTTPHeader.USER_AGENT, "Mozilla/5.0 I5MC");
-//        HashMap<String, String> map = new HashMap<>();
-//        ...
-//        request.setHeader(map);
+        HTTPRequest icon = HTTPRequest.build("http://setting.smartisan.com/app/icon", HTTPMethod.POST);
+        icon.setContentType(HTTPHeader.ContentType.JSON);
+        icon.setContent("[{\"package\":\"com.sina.weibo\"}]");
+        HTTP.open(icon, (e, response) -> {
+            Assert.assertNull(e);
+            Assert.assertNotNull(response);
+        });
+        HTTP.flush();// 因为单元测试执行时间较短所以等待回调
 
-//        HTTP.open(request, (e, response) -> {
-//            if (e == null) {
-//                Assert.assertEquals(response.getResponse(), 200); // 单元测试里面可能会错过回调
-//            }
-//        });
-        HTTPRequest request = HTTPRequest.build("http://setting.smartisan.com/app/icon", HTTPMethod.POST);
-        request.setHeader(HTTPHeader.CONTENT_TYPE, HTTPHeader.ContentType.JSON);
-        request.setContent("[{\"package\":\"com.sina.weibo\"}]");
-        HTTPResponse response = HTTP.open(request).get();
-//        System.out.println(response.getContent());
-        Assert.assertEquals(response.getResponse(), 200);
-        Assert.assertTrue(!response.getContent().isEmpty());
+        HTTPRequest request = HTTPRequest.build("https://www.baidu.com");
+        HTTPResponse du = HTTP.open(request).get();
+        Assert.assertTrue(du.getResponse() == 200);
+        Assert.assertNotNull(du.getContent());
     }
 
 }
