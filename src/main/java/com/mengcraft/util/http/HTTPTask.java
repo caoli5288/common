@@ -9,11 +9,15 @@ import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 
 /**
  * Created on 17-3-1.
  */
 public class HTTPTask implements Callable<Integer> {
+
+    private static final Pattern PROTOCOL = Pattern.compile("^http(s)?$");
+    private static final int TIMEOUT = 60000;
 
     private final HTTPRequest request;
 
@@ -33,45 +37,52 @@ public class HTTPTask implements Callable<Integer> {
         }
     }
 
+    private void valid(String protocol) throws IOException {
+        if (PROTOCOL.matcher(protocol).matches()) return;
+        throw new IOException(protocol);
+    }
+
+    private int conn() throws IOException {
+        val link = new URL(request.getAddress());
+        valid(link.getProtocol());
+
+        val conn = (HttpURLConnection) link.openConnection();
+        init(conn);
+
+        if (!HTTP.nil(request.getRawContent())) {
+            conn.setDoOutput(true);
+        }
+
+        conn.setConnectTimeout(TIMEOUT);
+        conn.setReadTimeout(TIMEOUT);
+        conn.connect();
+
+        if (conn.getDoOutput()) {
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(request.getRawContent());
+                out.flush();
+            }
+        }
+
+        int response = conn.getResponseCode();
+
+        val callback = request.getCallback();
+        if (!HTTP.nil(callback)) {
+            try (InputStream input = conn.getInputStream()) {
+                callback.call(null, new Response(response, input));
+            }
+        }
+
+        conn.disconnect();
+        return response;
+    }
+
     @Override
     public Integer call() throws IOException {
         try {
-            val link = new URL(request.getAddress());
-            val open = link.openConnection();
-
-            if (!(open instanceof HttpURLConnection)) throw new IOException("protocol");
-
-            val conn = (HttpURLConnection) open;
-            init(conn);
-
-            byte[] content = request.getRawContent();
-
-            if (!HTTP.nil(content)) {
-                conn.setDoOutput(true);
-            }
-            conn.connect();
-
-            if (conn.getDoOutput()) {
-                try (OutputStream out = conn.getOutputStream()) {
-                    out.write(content);
-                    out.flush();
-                }
-            }
-
-            val callback = request.getCallback();
-            int result = conn.getResponseCode();
-
-            if (!HTTP.nil(callback)) {
-                try (InputStream input = conn.getInputStream()) {
-                    callback.call(null, new Response(result, input));
-                }
-            }
-
+            return conn();
+        } finally {
             HTTPTask.LATCH.down();
-            return result;
-        } catch (IOException e) {
-            HTTPTask.LATCH.down();
-            throw e;
         }
     }
 

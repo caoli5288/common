@@ -7,10 +7,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class Latch extends AtomicInteger {
 
+    private volatile boolean wait;
+
     public void hold(long time) {
         int i = get();
         if (i > 0) {
             synchronized (this) {
+                wait = true;
                 try {
                     wait(time);
                 } catch (InterruptedException e) {
@@ -22,9 +25,10 @@ public class Latch extends AtomicInteger {
 
     public void down() {
         int i = decrementAndGet();
-        if (i < 1) {
+        if (i < 1 && wait) {
             synchronized (this) {
                 notifyAll();
+                wait = false;
             }
         }
     }
