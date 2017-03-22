@@ -70,6 +70,8 @@ public class HTTPTask implements Callable<Integer> {
         if (!HTTP.nil(callback)) {
             try (InputStream input = conn.getInputStream()) {
                 callback.call(null, new Response(response, input));
+            } catch (Exception e) {
+                callback.call(e, null);// overdrive it
             }
         }
 
