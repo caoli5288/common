@@ -1,5 +1,7 @@
 package com.mengcraft.util;
 
+import lombok.val;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -32,15 +34,13 @@ public final class ListHelper {
     }
 
     public static <E> String join(Collection<E> i, String separator) {
-        String out = "";
-        Iterator<E> it = i.iterator();
-        while (it.hasNext()) {
-            out += it.next();
-            if (it.hasNext()) {
-                out += separator;
-            }
+        val out = new StringBuilder();
+        val l = i.iterator();
+        while (l.hasNext()) {
+            if (out.length() > 0) out.append(separator);
+            out.append(l.next());
         }
-        return out;
+        return out.toString();
     }
 
     public static <E> void forEach(Collection<E> i, Predicate<E> p, Consumer<E> c) {
