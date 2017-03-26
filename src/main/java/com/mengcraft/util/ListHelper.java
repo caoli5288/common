@@ -33,6 +33,11 @@ public final class ListHelper {
         return count;
     }
 
+    public <T> T[] asArray(T... i) {
+        if (i.length == 0) throw new IllegalArgumentException("");
+        return i;
+    }
+
     public static <E> String join(Collection<E> i, String separator) {
         val out = new StringBuilder();
         val l = i.iterator();
