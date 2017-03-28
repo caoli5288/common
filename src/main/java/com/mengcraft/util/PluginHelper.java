@@ -41,14 +41,14 @@ public class PluginHelper {
         }
 
         @Override
-        public boolean execute(CommandSender sender, String l, String[] i) {
-            return testPermission(sender) && exec.exec(sender, l, ImmutableList.copyOf(i));
+        public boolean execute(CommandSender who, String l, String[] i) {
+            return testPermission(who) && exec.exec(who, ImmutableList.copyOf(i));
         }
     }
 
     public interface IExec {
 
-        boolean exec(CommandSender sender, String command, List<String> list);
+        boolean exec(CommandSender sender, List<String> list);
     }
 
     public interface ICancellable {
