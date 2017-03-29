@@ -33,8 +33,8 @@ public final class ListHelper {
         return count;
     }
 
-    public <T> T[] asArray(T... i) {
-        if (i.length == 0) throw new IllegalArgumentException("");
+    public static <T> T[] asArray(T... i) {// 这里会有语义问题
+        if (i == null) throw new NullPointerException();
         return i;
     }
 
