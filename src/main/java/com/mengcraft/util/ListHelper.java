@@ -33,9 +33,24 @@ public final class ListHelper {
         return count;
     }
 
+    public static <R, E> List<R> collect(List<E> in, Function<E, R> func) {
+        List<R> out = new ArrayList<>(in.size());
+        for (E i : in) {
+            out.add(func.apply(i));
+        }
+        return out;
+    }
+
     public static <T> T[] asArray(T... i) {// 这里会有语义问题
         if (i == null) throw new NullPointerException();
         return i;
+    }
+
+    public static <T> boolean any(Collection<T> input, Predicate<T> p) {
+        for (T i : input) {
+            if (p.test(i)) return true;
+        }
+        return false;
     }
 
     public static <E> String join(Collection<E> i, String separator) {
@@ -79,14 +94,6 @@ public final class ListHelper {
         forEach(in, p, t -> {
             out.add(t);
         });
-        return out;
-    }
-
-    public static <R, E> List<R> collect(List<E> in, Function<E, R> func) {
-        List<R> out = new ArrayList<>(in.size());
-        for (E i : in) {
-            out.add(func.apply(i));
-        }
         return out;
     }
 
