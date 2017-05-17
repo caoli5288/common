@@ -1,12 +1,9 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Server;
-import org.bukkit.configuration.ConfigurationSection;
-
-import java.util.Iterator;
+import org.bukkit.configuration.file.FileConfiguration;
 
 import static org.bukkit.util.NumberConversions.toFloat;
 
@@ -14,6 +11,7 @@ import static org.bukkit.util.NumberConversions.toFloat;
  * Created on 16-7-18.
  */
 public class FakeLocation {
+
     private String world;
     private double x;
     private double y;
@@ -81,54 +79,58 @@ public class FakeLocation {
         this.pitch = pitch;
     }
 
-    public Location toLocation(Server server) {
-        return toLocation(this, server);
+    public Location toLocation() {
+        return toLocation(this);
     }
 
-    public void save(ConfigurationSection j, String path) {
-        save(this, j, path);
+    public void save(FileConfiguration i, String path) {
+        save(this, i, path);
     }
 
     public String encode() {
         return world + "," + x + "," + y + "," + z + "," + yaw + "," + pitch;
     }
 
+    @Override
+    public String toString() {
+        return "FakeLocation(" + encode() + ')';
+    }
+
     public static FakeLocation decode(String data) {
         String[] split = data.split(",");
         Preconditions.checkArgument(split.length == 6);
-        Iterator<String> it = ImmutableList.of(split).iterator();
         FakeLocation location = new FakeLocation();
-        location.world = it.next();
-        location.x = Double.parseDouble(it.next());
-        location.y = Double.parseDouble(it.next());
-        location.z = Double.parseDouble(it.next());
-        location.yaw = Float.parseFloat(it.next());
-        location.pitch = Float.parseFloat(it.next());
+        location.world = split[0];
+        location.x = Double.parseDouble(split[1]);
+        location.y = Double.parseDouble(split[2]);
+        location.z = Double.parseDouble(split[3]);
+        location.yaw = Float.parseFloat(split[4]);
+        location.pitch = Float.parseFloat(split[5]);
         return location;
     }
 
-    public static void save(FakeLocation i, ConfigurationSection j, String path) {
-        j.set(path + ".world", i.world);
-        j.set(path + ".x", i.x);
-        j.set(path + ".y", i.y);
-        j.set(path + ".z", i.z);
-        j.set(path + ".yaw", i.yaw);
-        j.set(path + ".pitch", i.pitch);
+    public static void save(FakeLocation l, FileConfiguration i, String path) {
+        i.set(path + ".world", l.world);
+        i.set(path + ".x", l.x);
+        i.set(path + ".y", l.y);
+        i.set(path + ".z", l.z);
+        i.set(path + ".yaw", l.yaw);
+        i.set(path + ".pitch", l.pitch);
     }
 
-    public static FakeLocation load(ConfigurationSection j, String path) {
+    public static FakeLocation load(FileConfiguration i, String path) {
         return new FakeLocation(
-                j.getString(path + ".world"),
-                j.getDouble(path + ".x"),
-                j.getDouble(path + ".y"),
-                j.getDouble(path + ".z"),
-                toFloat(j.getDouble(path + ".yaw")),
-                toFloat(j.getDouble(path + ".pitch"))
+                i.getString(path + ".world"),
+                i.getDouble(path + ".x"),
+                i.getDouble(path + ".y"),
+                i.getDouble(path + ".z"),
+                toFloat(i.getDouble(path + ".yaw")),
+                toFloat(i.getDouble(path + ".pitch"))
         );
     }
 
-    public static Location toLocation(FakeLocation i, Server server) {
-        return new Location(server.getWorld(i.world), i.x, i.y, i.z, i.yaw, i.pitch);
+    public static Location toLocation(FakeLocation i) {
+        return new Location(Bukkit.getWorld(i.world), i.x, i.y, i.z, i.yaw, i.pitch);
     }
 
     public static FakeLocation of(Location i) {

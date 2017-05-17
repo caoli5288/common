@@ -7,8 +7,8 @@
 
     <repositories>
         <repository>
-            <id>bukkit-repo</id>
-            <url>http://repo.md-5.net/content/groups/public/</url>
+            <id>repo</id>
+            <url>http://ci.mengcraft.com:8080/plugin/repository/everything/</url>
         </repository>
     </repositories>
 
@@ -16,13 +16,13 @@
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>bukkit</artifactId>
-            <version>LATEST</version>
+            <version>1.8.8-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.16.14</version>
+            <version>1.16.16</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
