@@ -70,7 +70,11 @@ public class PluginHelper {
                 out.runTaskLater(plugin, i);
             }
         } else {
-            out.runTask(plugin);
+            if (repeat > 0) {
+                out.runTaskTimer(plugin, 0, repeat);
+            } else {
+                out.runTask(plugin);
+            }
         }
         return out.getTaskId();
     }
