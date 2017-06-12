@@ -1,19 +1,19 @@
 package com.mengcraft.util;
 
+import lombok.SneakyThrows;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 
 /**
  * Created on 16-3-13.
  */
-public interface Title {
+public class Title {
 
-    String SCRIPT = "" +
+    private static final String SCRIPT = "" +
             "PacketPlayOutTitle = Java.type(\"net.minecraft.server.\" + version + \".PacketPlayOutTitle\");\n" +
             "EnumTitleAction = Java.type(\"net.minecraft.server.\" + version + \".PacketPlayOutTitle$EnumTitleAction\");\n" +
             "ChatComponentText = Java.type(\"net.minecraft.server.\" + version + \".ChatComponentText\");\n" +
@@ -25,7 +25,7 @@ public interface Title {
             "            sendTime(p, title);\n" +
             "        }\n" +
             "        sendSubTitle(p, title);\n" +
-            "        sendMainTitle(p, title);\n" +
+            "        sendTitle(p, title);\n" +
             "    }\n" +
             "}\n" +
             "function sendPacket(p, packet) {\n" +
@@ -44,17 +44,28 @@ public interface Title {
             "    sendPacket(p, new PacketPlayOutTitle(EnumTitleAction.RESET, null));\n" +
             "}";
 
-    void send(Player p, TitleEntry entry);
+    public interface ITitle {
 
-    static Title of(Plugin plugin) {
-        ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
-        try {
-            engine.put("version", plugin.getServer().getClass().getName().split("\\.")[3]);
+        void send(Player p, TitleEntry entry);
+    }
+
+    private enum Hold {
+
+        INSTANCE;
+
+        private final ITitle title;
+
+        @SneakyThrows
+        Hold() {
+            ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+            engine.put("version", Bukkit.getServer().getClass().getName().split("\\.")[3]);
             engine.eval(SCRIPT);
-        } catch (ScriptException e) {
-            throw new RuntimeException(e);
+            title = Invocable.class.cast(engine).getInterface(ITitle.class);
         }
-        return Invocable.class.cast(engine).getInterface(Title.class);
+    }
+
+    public static void send(Player p, TitleEntry entry) {
+        Hold.INSTANCE.title.send(p, entry);
     }
 
 }
