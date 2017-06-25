@@ -36,8 +36,8 @@ public class SubPluginLoader implements PluginLoader {
         INSTANCE;
 
         private final List<SubPlugin> loaded;
-        private final List<Plugin> all;
         private final Map<String, Plugin> map;
+        private final List<Plugin> all;
 
         @SneakyThrows
         Fun() {
@@ -153,7 +153,7 @@ public class SubPluginLoader implements PluginLoader {
         if (Fun.INSTANCE.loaded.contains(sub)) {
             throw new InvalidPluginException("Already loaded by sub-plugin loader");
         } else if (Fun.INSTANCE.map.containsKey(description.getName())) {
-            throw new InvalidPluginException("Already loaded by global loader");
+            throw new InvalidPluginException("Already loaded by origin");
         }
         for (String depend : description.getDepend()) {
             val load = Fun.INSTANCE.map.get(depend);
@@ -161,6 +161,27 @@ public class SubPluginLoader implements PluginLoader {
                 throw new UnknownDependencyException("Depend plugin " + depend + " not found or enabled");
             }
         }
+    }
+
+    public static <T> T getPlugin(Class<T> clazz) {
+        if (clazz == null) {
+            throw new NullPointerException("clazz");
+        }
+        if (!Plugin.class.isAssignableFrom(clazz)) {
+            throw new IllegalArgumentException(clazz + " does not extend " + Plugin.class);
+        }
+        Plugin plugin = null;
+        val itr = Fun.INSTANCE.all.iterator();
+        while (plugin == null && itr.hasNext()) {
+            val next = itr.next();
+            if (clazz == next.getClass()) {
+                plugin = next;
+            }
+        }
+        if (plugin == null) {
+            throw new IllegalStateException("Cannot get plugin for " + clazz + " from a static initializer");
+        }
+        return clazz.cast(plugin);
     }
 
 }

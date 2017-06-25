@@ -155,4 +155,12 @@ public abstract class SubPlugin extends PluginBase {
         return null;
     }
 
+    public static <T> T getPlugin(Class<T> clazz) {
+        return SubPluginLoader.getPlugin(clazz);
+    }
+
+    public static JavaPlugin getProvidingPlugin(Class<?> clazz) {
+        return JavaPlugin.getProvidingPlugin(clazz);
+    }
+
 }
