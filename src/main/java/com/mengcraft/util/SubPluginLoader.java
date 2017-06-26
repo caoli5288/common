@@ -68,9 +68,8 @@ public class SubPluginLoader implements PluginLoader {
     }
 
     private final JavaPlugin plugin;
-    private boolean unload;
 
-    public SubPluginLoader(JavaPlugin plugin) {
+    private SubPluginLoader(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -135,6 +134,10 @@ public class SubPluginLoader implements PluginLoader {
         }
     }
 
+    public void unloadAll() {
+        unloadAll(plugin);
+    }
+
     public static void unloadAll(JavaPlugin parent) {
         for (SubPlugin plugin : Fun.INSTANCE.loaded) {
             if (plugin.getParent() == parent) {
@@ -182,6 +185,11 @@ public class SubPluginLoader implements PluginLoader {
             throw new IllegalStateException("Cannot get plugin for " + clazz + " from a static initializer");
         }
         return clazz.cast(plugin);
+    }
+
+    public static SubPluginLoader of(JavaPlugin parent) {
+        if (parent == null) throw new NullPointerException("parent");
+        return new SubPluginLoader(parent);
     }
 
 }
