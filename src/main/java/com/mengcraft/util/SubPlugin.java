@@ -24,6 +24,7 @@ public abstract class SubPlugin extends PluginBase {
     private JavaPlugin parent;
     private PluginDescriptionFile description;
     private PluginLoader loader;
+    private Logger logger;
     private boolean enabled;
 
     public JavaPlugin getParent() {
@@ -142,7 +143,11 @@ public abstract class SubPlugin extends PluginBase {
 
     @Override
     public Logger getLogger() {
-        return parent.getLogger();
+        return logger;
+    }
+
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
 
     @Override

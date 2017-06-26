@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -80,11 +82,23 @@ public class SubPluginLoader implements PluginLoader {
 
     public Plugin loadPlugin(SubPlugin sub, PluginDescriptionFile description) throws InvalidPluginException {
         valid(sub, description);
+
         sub.setLoader(this);
         sub.setDescription(description);
         sub.setParent(plugin);
+
+        val logger = plugin.getLogger();
+        val log = "[Sub|" + description.getName() + "] ";
+
+        sub.setLogger(new Logger(sub.getClass().getCanonicalName(), null) {
+            public void log(LogRecord record) {
+                record.setMessage(log + record.getMessage());
+                logger.log(record);
+            }
+        });
         Fun.load(sub);
         Bukkit.getPluginManager().enablePlugin(sub);
+
         return sub;
     }
 
