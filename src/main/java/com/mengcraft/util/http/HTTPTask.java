@@ -1,5 +1,6 @@
 package com.mengcraft.util.http;
 
+import com.mengcraft.util.Latch;
 import lombok.val;
 
 import java.io.IOException;

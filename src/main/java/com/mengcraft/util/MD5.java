@@ -1,41 +1,66 @@
 package com.mengcraft.util;
 
+import lombok.SneakyThrows;
+import lombok.val;
+
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 
-public final class MD5 extends SecureRandom {
+public final class MD5 {
 
-    public static final MD5 DEFAULT = new MD5();
+    private static final ThreadLocal<MessageDigest> MD = ThreadLocal.withInitial(MD5::load);
 
     private static final char[] HEX = {
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
             'a', 'b', 'c', 'd', 'e', 'f'
     };
 
-    public String digest(String in) throws Exception {
+    @SneakyThrows
+    private static MessageDigest load() {
+        return MessageDigest.getInstance("MD5");
+    }
+
+    public static String digest(String in) {
         if (in == null) {
             throw new NullPointerException();
         }
         return digest(in.getBytes());
     }
 
-    public String digest(byte[] in) throws Exception {
+    @SneakyThrows
+    public static String digest(byte[] in) {
         if (in == null) {
             throw new NullPointerException();
         }
-        MessageDigest md = MessageDigest.getInstance("MD5");
+        val md = MD.get();
         md.update(in);
         byte[] out = md.digest();
         return hex(out);
     }
 
-    public String random(int size) {
-        byte[] input = new byte[size];
-        nextBytes(input);
-        return hex(input);
+    public static void update(byte[] input) {
+        if (input == null) {
+            throw new NullPointerException();
+        }
+        MD.get().update(input);
     }
 
-    public String hex(byte[] out) {
+    public static void update(ByteBuffer input) {
+        if (input == null) {
+            throw new NullPointerException();
+        }
+        MD.get().update(input);
+    }
+
+    public static String digest() {
+        return hex(MD.get().digest());
+    }
+
+    public static void reset() {
+        MD.get().reset();
+    }
+
+    public static String hex(byte[] out) {
         if (out == null) {
             throw new NullPointerException();
         }

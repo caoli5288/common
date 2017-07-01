@@ -1,6 +1,8 @@
-package com.mengcraft.util;
+package com.mengcraft.util.library;
 
 import com.google.common.collect.ImmutableList;
+import com.mengcraft.util.MD5;
+import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class MavenLibrary extends Library {
     private final String artifact;
     private final String version;
     private File file;
+    private List<Library> sublist;
 
     @Override
     public File getFile() {
@@ -48,26 +51,28 @@ public class MavenLibrary extends Library {
     @SneakyThrows
     @Override
     public List<Library> getSublist() {
-        File pom = new File(getFile().getParentFile(), getFile().getName() + ".pom");
-        Node root = XMLHelper.getDocumentBy(pom).getFirstChild();
+        if (sublist == null) {
+            File pom = new File(getFile().getParentFile(), getFile().getName() + ".pom");
+            Node root = XMLHelper.getDocumentBy(pom).getFirstChild();
 
-        Element all = XMLHelper.getElementBy(root, "dependencies");
-        if (all == null) return ImmutableList.of();
+            Element all = XMLHelper.getElementBy(root, "dependencies");
+            if (all == null) return (sublist = ImmutableList.of());
 
-        ImmutableList.Builder<Library> b = ImmutableList.builder();
+            ImmutableList.Builder<Library> b = ImmutableList.builder();
 
-        for (Element depend : XMLHelper.getElementListBy(all, "dependency")) {
-            String scope = XMLHelper.getElementValue(depend, "scope");
-            if (scope == null || scope.equals("compile")) {
-                b.add(new MavenLibrary(repository,
-                        XMLHelper.getElementValue(depend, "groupId"),
-                        XMLHelper.getElementValue(depend, "artifactId"),
-                        XMLHelper.getElementValue(depend, "version")
-                ));
+            for (Element depend : XMLHelper.getElementListBy(all, "dependency")) {
+                String scope = XMLHelper.getElementValue(depend, "scope");
+                if (scope == null || scope.equals("compile")) {
+                    b.add(new MavenLibrary(repository,
+                            XMLHelper.getElementValue(depend, "groupId"),
+                            XMLHelper.getElementValue(depend, "artifactId"),
+                            XMLHelper.getElementValue(depend, "version")
+                    ));
+                }
             }
+            sublist = b.build();
         }
-
-        return b.build();
+        return sublist;
     }
 
     @SneakyThrows
@@ -76,7 +81,7 @@ public class MavenLibrary extends Library {
             throw new IOException("mkdir");
         }
 
-        val lib = repository
+        val url = repository
                 + group.replace('.', '/')
                 + '/'
                 + artifact
@@ -85,31 +90,17 @@ public class MavenLibrary extends Library {
                 + '/'
                 + artifact + '-' + version;
 
-        Files.copy(new URL(lib + ".jar").openStream(),
+        Files.copy(new URL(url + ".jar").openStream(),
                 getFile().toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
 
-        Files.copy(new URL(lib + ".jar.md5").openStream(),
+        Files.copy(new URL(url + ".jar.md5").openStream(),
                 new File(getFile().getParentFile(), getFile().getName() + ".md5").toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
 
-        Files.copy(new URL(lib + ".pom").openStream(),
+        Files.copy(new URL(url + ".pom").openStream(),
                 new File(getFile().getParentFile(), getFile().getName() + ".pom").toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
-    }
-
-    private static final char[] HEX = {
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-            'a', 'b', 'c', 'd', 'e', 'f'
-    };
-
-    protected String hex(byte[] out) {
-        StringBuilder buf = new StringBuilder();
-        for (byte b : out) {
-            buf.append(HEX[b >>> 4 & 0xf]);
-            buf.append(HEX[b & 0xf]);
-        }
-        return buf.toString();
     }
 
     @SneakyThrows
@@ -117,15 +108,14 @@ public class MavenLibrary extends Library {
         if (getFile().isFile()) {
             val check = new File(file.getParentFile(), file.getName() + ".md5");
             if (check.isFile()) {
-                val digest = MessageDigest.getInstance("MD5");
                 val buf = ByteBuffer.allocate(1 << 16);
                 FileChannel channel = FileChannel.open(file.toPath());
                 while (!(channel.read(buf) == -1)) {
                     buf.flip();
-                    digest.update(buf);
+                    MD5.update(buf);
                     buf.compact();
                 }
-                return Files.newBufferedReader(check.toPath()).readLine().equals(hex(digest.digest()));
+                return Files.newBufferedReader(check.toPath()).readLine().equals(MD5.digest());
             }
         }
         return false;

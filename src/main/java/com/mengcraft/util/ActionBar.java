@@ -12,7 +12,7 @@ import java.util.WeakHashMap;
 /**
  * Created on 16-3-13.
  */
-public interface Action {
+public interface ActionBar {
 
     String SCRIPT = "" +
             "ChatComponentText = Java.type(\"net.minecraft.server.\" + version + \".ChatComponentText\");\n" +
@@ -30,7 +30,7 @@ public interface Action {
             "    sendPacket(p, packet);\n" +
             "}";
 
-    static Action of(Plugin plugin) {
+    static ActionBar of(Plugin plugin) {
         ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
         try {
             engine.put("version", plugin.getServer().getClass().getName().split("\\.")[3]);
@@ -39,7 +39,7 @@ public interface Action {
         } catch (ScriptException e) {
             throw new RuntimeException(e);
         }
-        return Invocable.class.cast(engine).getInterface(Action.class);
+        return Invocable.class.cast(engine).getInterface(ActionBar.class);
     }
 
     void send(Player p, String text);

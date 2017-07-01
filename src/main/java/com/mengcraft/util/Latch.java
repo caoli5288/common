@@ -1,4 +1,4 @@
-package com.mengcraft.util.http;
+package com.mengcraft.util;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
