@@ -23,7 +23,7 @@ public class Latch extends AtomicInteger {
         }
     }
 
-    public void down() {
+    public void decrementAndNotify() {
         int i = decrementAndGet();
         if (i < 1 && wait) {
             synchronized (this) {

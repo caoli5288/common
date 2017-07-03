@@ -1,10 +1,11 @@
 package com.mengcraft.util.http;
 
 import com.mengcraft.util.Latch;
+import lombok.EqualsAndHashCode;
+import lombok.SneakyThrows;
 import lombok.val;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
@@ -15,6 +16,7 @@ import java.util.regex.Pattern;
 /**
  * Created on 17-3-1.
  */
+@EqualsAndHashCode(of = "request")
 public class HTTPTask implements Callable<Integer> {
 
     private static final Pattern PROTOCOL = Pattern.compile("^http(s)?$");
@@ -39,18 +41,20 @@ public class HTTPTask implements Callable<Integer> {
     }
 
     private void valid(String protocol) throws IOException {
-        if (PROTOCOL.matcher(protocol).matches()) return;
-        throw new IOException(protocol);
+        if (!PROTOCOL.matcher(protocol).matches()) {
+            throw new IOException(protocol);
+        }
     }
 
-    private int conn() throws IOException {
+    @SneakyThrows
+    private int conn() {
         val link = new URL(request.getAddress());
         valid(link.getProtocol());
 
         val conn = (HttpURLConnection) link.openConnection();
         init(conn);
 
-        if (!HTTP.nil(request.getRawContent())) {
+        if (!HTTP.nil(request.getContent())) {
             conn.setDoOutput(true);
         }
 
@@ -60,33 +64,33 @@ public class HTTPTask implements Callable<Integer> {
 
         if (conn.getDoOutput()) {
             try (OutputStream out = conn.getOutputStream()) {
-                out.write(request.getRawContent());
+                out.write(request.getContent());
                 out.flush();
             }
         }
 
-        int response = conn.getResponseCode();
+        int result = conn.getResponseCode();
 
         val callback = request.getCallback();
         if (!HTTP.nil(callback)) {
-            try (InputStream input = conn.getInputStream()) {
-                callback.call(null, new Response(response, input));
+            try (val dataInput = conn.getInputStream()) {
+                callback.call(null, new Response(
+                        request.getAddress(),
+                        request.getMethod(),
+                        result,
+                        dataInput));
             } catch (Exception e) {
                 callback.call(e, null);// overdrive it
             }
         }
 
         conn.disconnect();
-        return response;
+        return result;
     }
 
     @Override
-    public Integer call() throws IOException {
-        try {
-            return conn();
-        } finally {
-            HTTPTask.LATCH.down();
-        }
+    public Integer call() {
+        return conn();
     }
 
     static final Latch LATCH = new Latch();

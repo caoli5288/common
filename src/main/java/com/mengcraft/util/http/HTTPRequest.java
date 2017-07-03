@@ -1,68 +1,74 @@
 package com.mengcraft.util.http;
 
+import lombok.EqualsAndHashCode;
+
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Created on 16-12-5.
  */
+@EqualsAndHashCode(of = "id")
 public class HTTPRequest {
 
-    private HTTPHeader header = new HTTPHeader();
-
+    private final UUID id = UUID.randomUUID();
     private final String address;
     private HTTPMethod method;
+    private HTTPHeader header = new HTTPHeader();
 
     private byte[] content;
     private Callback callback;
 
-    HTTPRequest(String address, HTTPMethod method) {
+    private HTTPRequest(String address, HTTPMethod method) {
         this.address = address;
         this.method = method;
     }
 
-    HTTPHeader getHeader() {
+    public HTTPHeader getHeader() {
         return header;
     }
 
-    String getAddress() {
+    public String getAddress() {
         return address;
     }
 
-    HTTPMethod getMethod() {
+    public HTTPMethod getMethod() {
         return method;
     }
 
     public HTTPRequest setHeader(Map<String, String> input) {
-        HTTP.valid(HTTP.nil(input), "null");
+        HTTP.thr(HTTP.nil(input), "null");
         header = new HTTPHeader(input);
         return this;
     }
 
     public HTTPRequest setHeader(String key, Object value) {
-        HTTP.valid(HTTP.nil(key), "null");
+        HTTP.thr(HTTP.nil(key), "null");
         header.add(key, value.toString());
         return this;
     }
 
     public HTTPRequest setContentType(HTTPHeader.ContentType type) {
-        HTTP.valid(HTTP.nil(type), "null");
+        HTTP.thr(HTTP.nil(type), "null");
         return setHeader(HTTPHeader.CONTENT_TYPE, type);
     }
 
-    byte[] getRawContent() {
+    public byte[] getContent() {
         return content;
     }
 
-    public HTTPRequest setRawContent(byte[] content) {
+    public HTTPRequest setContent(byte[] content) {
         this.content = content;
         return this;
     }
 
-    public HTTPRequest setContent(String content) {
+    public HTTPRequest setMessageContent(String content) {
         this.content = content.getBytes(Charset.forName("UTF-8"));
         return this;
     }
+
+    //==== Access by HTTP::open only
 
     Callback getCallback() {
         return callback;
@@ -72,12 +78,14 @@ public class HTTPRequest {
         this.callback = callback;
     }
 
+    //====
+
     public static HTTPRequest build(String address) {
         return build(address, HTTPMethod.GET);
     }
 
     public static HTTPRequest build(String address, HTTPMethod method) {
-        HTTP.valid(HTTP.nil(address) || HTTP.nil(method), "null");
+        HTTP.thr(HTTP.nil(address) || HTTP.nil(method), "null");
         return new HTTPRequest(address, method);
     }
 
