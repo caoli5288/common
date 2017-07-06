@@ -1,6 +1,7 @@
 package com.mengcraft.util.library;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
 import com.mengcraft.util.MD5;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
@@ -18,7 +19,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
 
@@ -52,21 +52,30 @@ public class MavenLibrary extends Library {
     @Override
     public List<Library> getSublist() {
         if (sublist == null) {
-            File pom = new File(getFile().getParentFile(), getFile().getName() + ".pom");
-            Node root = XMLHelper.getDocumentBy(pom).getFirstChild();
+            File xml = new File(getFile().getParentFile(), getFile().getName() + ".pom");
+            Node pom = XMLHelper.getDocumentBy(xml).getFirstChild();
 
-            Element all = XMLHelper.getElementBy(root, "dependencies");
+            Element all = XMLHelper.getElementBy(pom, "dependencies");
             if (all == null) return (sublist = ImmutableList.of());
 
-            ImmutableList.Builder<Library> b = ImmutableList.builder();
+            Element p = XMLHelper.getElementBy(pom, "properties");
+
+            Builder<Library> b = ImmutableList.builder();
 
             for (Element depend : XMLHelper.getElementListBy(all, "dependency")) {
                 String scope = XMLHelper.getElementValue(depend, "scope");
                 if (scope == null || scope.equals("compile")) {
+                    String version = XMLHelper.getElementValue(depend, "version");
+                    if (version == null) throw new NullPointerException();
+                    // TODO
+                    if (version.startsWith("${")) {
+                        val sub = version.substring(2, version.length() - 1);
+                        version = XMLHelper.getElementValue(p, sub);
+                    }
                     b.add(new MavenLibrary(repository,
                             XMLHelper.getElementValue(depend, "groupId"),
                             XMLHelper.getElementValue(depend, "artifactId"),
-                            XMLHelper.getElementValue(depend, "version")
+                            version
                     ));
                 }
             }

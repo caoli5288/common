@@ -30,9 +30,17 @@ public enum RefHelper {
 
     @SneakyThrows
     static Method b(Class<?> type, String name, Class<?>[] p) {
-        val method = type.getDeclaredMethod(name, p);
-        method.setAccessible(true);
-        return method;
+        try {
+            val method = type.getDeclaredMethod(name, p);
+            method.setAccessible(true);
+            return method;
+        } catch (NoSuchMethodException e) {
+            if (!(type == Object.class)) {
+                return getMethodRef(type.getSuperclass(), name, p);
+            } else {
+                throw e;
+            }
+        }
     }
 
     @SneakyThrows
@@ -42,19 +50,19 @@ public enum RefHelper {
     }
 
     @SneakyThrows
-    static Method getMethodRef(Class<?> type, String name, Object[] input) {
+    static Method getMethodRef(Class<?> type, String name, Class<?>[] p) {
         Map<String, Method> map = MAPPING.m.computeIfAbsent(type, t -> new HashMap<>());
-        Class<?>[] p = new Class[input.length];
-        for (int i = 0; i < input.length; i++) {
-            p[i] = input[i].getClass();
-        }
         return map.computeIfAbsent(name + "|" + Arrays.toString(p), n -> b(type, name, p));
     }
 
     @SneakyThrows
     public static <T> T invoke(Object any, String method, Object... input) {
-        Method ref = getMethodRef(any.getClass(), method, input);
-        return (T) ref.invoke(any, input);
+        Class<?>[] p = new Class[input.length];
+        for (int i = 0; i < input.length; i++) {
+            p[i] = input[i].getClass();
+        }
+        val invokable = getMethodRef(any.getClass(), method, p);
+        return (T) invokable.invoke(any, input);
     }
 
     @SneakyThrows
