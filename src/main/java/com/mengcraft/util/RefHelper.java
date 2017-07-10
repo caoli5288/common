@@ -55,19 +55,26 @@ public enum RefHelper {
         return map.computeIfAbsent(name + "|" + Arrays.toString(p), n -> b(type, name, p));
     }
 
+    static Class b(Object any) {
+        if (any instanceof Class) {
+            return (Class) any;
+        }
+        return any.getClass();
+    }
+
     @SneakyThrows
     public static <T> T invoke(Object any, String method, Object... input) {
         Class<?>[] p = new Class[input.length];
         for (int i = 0; i < input.length; i++) {
             p[i] = input[i].getClass();
         }
-        val invokable = getMethodRef(any.getClass(), method, p);
+        val invokable = getMethodRef(b(any), method, p);
         return (T) invokable.invoke(any, input);
     }
 
     @SneakyThrows
     public static <T> T getField(Object any, String field) {
-        Field ref = getFieldRef(any.getClass(), field);
+        Field ref = getFieldRef(b(any), field);
         return (T) ref.get(any);
     }
 }
