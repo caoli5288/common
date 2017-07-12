@@ -1,5 +1,6 @@
 package com.mengcraft.util.http;
 
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.nio.charset.Charset;
@@ -9,6 +10,7 @@ import java.util.UUID;
 /**
  * Created on 16-12-5.
  */
+@Data
 @EqualsAndHashCode(of = "id")
 public class HTTPRequest {
 
@@ -23,18 +25,6 @@ public class HTTPRequest {
     private HTTPRequest(String address, HTTPMethod method) {
         this.address = address;
         this.method = method;
-    }
-
-    public HTTPHeader getHeader() {
-        return header;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public HTTPMethod getMethod() {
-        return method;
     }
 
     public HTTPRequest setHeader(Map<String, String> input) {
@@ -52,10 +42,6 @@ public class HTTPRequest {
     public HTTPRequest setContentType(HTTPHeader.ContentType type) {
         HTTP.thr(HTTP.nil(type), "null");
         return setHeader(HTTPHeader.CONTENT_TYPE, type);
-    }
-
-    public byte[] getContent() {
-        return content;
     }
 
     public HTTPRequest setContent(byte[] content) {
