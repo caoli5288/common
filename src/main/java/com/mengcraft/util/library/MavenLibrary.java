@@ -2,15 +2,15 @@ package com.mengcraft.util.library;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.ImmutableSet;
 import com.mengcraft.util.MD5;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.val;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,12 +20,14 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 /**
  * Created on 17-6-26.
  */
 @Data
+@EqualsAndHashCode(of = {"repository", "group", "artifact", "version"})
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class MavenLibrary extends Library {
 
@@ -35,6 +37,15 @@ public class MavenLibrary extends Library {
     private final String version;
     private File file;
     private List<Library> sublist;
+
+    @Override
+    public String toString() {
+        return ("MavenLibrary(repository='" + repository + '\'' +
+                ", group='" + group + '\'' +
+                ", artifact='" + artifact + '\'' +
+                ", version='" + version + '\'' +
+                ")");
+    }
 
     @Override
     public File getFile() {
@@ -52,22 +63,22 @@ public class MavenLibrary extends Library {
     @Override
     public List<Library> getSublist() {
         if (sublist == null) {
-            File xml = new File(getFile().getParentFile(), getFile().getName() + ".pom");
-            Node pom = XMLHelper.getDocumentBy(xml).getFirstChild();
+            val xml = new File(getFile().getParentFile(), getFile().getName() + ".pom");
+            val pom = XMLHelper.getDocumentBy(xml).getFirstChild();
 
-            Element all = XMLHelper.getElementBy(pom, "dependencies");
+            val all = XMLHelper.getElementBy(pom, "dependencies");
             if (all == null) return (sublist = ImmutableList.of());
-
-            Element p = XMLHelper.getElementBy(pom, "properties");
-
+            val p = XMLHelper.getElementBy(pom, "properties");
             Builder<Library> b = ImmutableList.builder();
 
-            for (Element depend : XMLHelper.getElementListBy(all, "dependency")) {
-                String scope = XMLHelper.getElementValue(depend, "scope");
+            val list = XMLHelper.getElementListBy(all, "dependency");
+            for (val depend : list) {
+                val scope = XMLHelper.getElementValue(depend, "scope");
                 if (scope == null || scope.equals("compile")) {
                     String version = XMLHelper.getElementValue(depend, "version");
                     if (version == null) throw new NullPointerException();
-                    // TODO
+
+                    // TODO Request any placeholder support
                     if (version.startsWith("${")) {
                         val sub = version.substring(2, version.length() - 1);
                         version = XMLHelper.getElementValue(p, sub);
@@ -90,7 +101,12 @@ public class MavenLibrary extends Library {
             throw new IOException("mkdir");
         }
 
-        val url = repository
+        loadFile(ImmutableSet.of(repository, Repository.CENTRAL.repository, Repository.I7MC.repository).iterator());
+    }
+
+    void loadFile(Iterator<String> repo) throws IOException {
+        val url = repo.next()
+                + '/'
                 + group.replace('.', '/')
                 + '/'
                 + artifact
@@ -98,18 +114,23 @@ public class MavenLibrary extends Library {
                 + version
                 + '/'
                 + artifact + '-' + version;
+        try {
+            Files.copy(new URL(url + ".jar").openStream(),
+                    getFile().toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(new URL(url + ".jar.md5").openStream(),
+                    new File(getFile().getParentFile(), getFile().getName() + ".md5").toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(new URL(url + ".pom").openStream(),
+                    new File(getFile().getParentFile(), getFile().getName() + ".pom").toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
 
-        Files.copy(new URL(url + ".jar").openStream(),
-                getFile().toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
-
-        Files.copy(new URL(url + ".jar.md5").openStream(),
-                new File(getFile().getParentFile(), getFile().getName() + ".md5").toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
-
-        Files.copy(new URL(url + ".pom").openStream(),
-                new File(getFile().getParentFile(), getFile().getName() + ".pom").toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException io) {
+            if (!repo.hasNext()) {
+                throw new IOException("NO MORE REPOSITORY TO TRY", io);
+            }
+            loadFile(repo);
+        }
     }
 
     @SneakyThrows
@@ -132,7 +153,8 @@ public class MavenLibrary extends Library {
 
     public enum Repository {
 
-        CENTRAL("http://central.maven.org/maven2/");
+        CENTRAL("http://central.maven.org/maven2"),
+        I7MC("http://ci.mengcraft.com:8080/plugin/repository/everything");
 
         private final String repository;
 
