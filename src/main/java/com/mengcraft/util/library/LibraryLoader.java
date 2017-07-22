@@ -36,6 +36,15 @@ public class LibraryLoader {
         plugin.getLogger().info("Load library " + lib + " done");
     }
 
+    public static void load(JavaPlugin plugin, String clz, Library library) {
+        try {
+            plugin.getClass().getClassLoader().loadClass(clz);
+        } catch (ClassNotFoundException ign) {
+            plugin.getLogger().info("Missing " + clz);
+            load(plugin, library);
+        }
+    }
+
     @SneakyThrows
     static void load(JavaPlugin plugin, Library library, File lib) {
         plugin.getLogger().info("Loading library " + library);
