@@ -38,7 +38,7 @@ public class LibraryLoader {
 
     public static void load(JavaPlugin plugin, String clz, Library library) {
         try {
-            plugin.getClass().getClassLoader().loadClass(clz);
+            Class.forName(clz);
         } catch (ClassNotFoundException ign) {
             plugin.getLogger().info("Missing " + clz);
             load(plugin, library);
