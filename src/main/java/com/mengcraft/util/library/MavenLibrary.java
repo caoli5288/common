@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.ToString;
 import lombok.val;
 
 import java.io.File;
@@ -27,25 +28,19 @@ import java.util.List;
  * Created on 17-6-26.
  */
 @Data
-@EqualsAndHashCode(of = {"repository", "group", "artifact", "version"})
+@EqualsAndHashCode(exclude = {"file", "sublist", "clazz"})
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@ToString(exclude = {"file", "sublist", "clazz"})
 public class MavenLibrary extends Library {
 
     private final String repository;
     private final String group;
     private final String artifact;
     private final String version;
+    private final String clazz;
+
     private File file;
     private List<Library> sublist;
-
-    @Override
-    public String toString() {
-        return ("MavenLibrary(repository='" + repository + '\'' +
-                ", group='" + group + '\'' +
-                ", artifact='" + artifact + '\'' +
-                ", version='" + version + '\'' +
-                ")");
-    }
 
     @Override
     public File getFile() {
@@ -86,7 +81,8 @@ public class MavenLibrary extends Library {
                     b.add(new MavenLibrary(repository,
                             XMLHelper.getElementValue(depend, "groupId"),
                             XMLHelper.getElementValue(depend, "artifactId"),
-                            version
+                            version,
+                            null
                     ));
                 }
             }
@@ -151,12 +147,23 @@ public class MavenLibrary extends Library {
         return false;
     }
 
+    @Override
+    public boolean present() {
+        if (clazz == null || clazz.isEmpty()) return false;
+        try {
+            val result = Class.forName(clazz);
+            return !(result == null);
+        } catch (Exception ign) {
+        }
+        return false;
+    }
+
     public enum Repository {
 
         CENTRAL("http://central.maven.org/maven2"),
         I7MC("http://ci.mengcraft.com:8080/plugin/repository/everything");
 
-        private final String repository;
+        final String repository;
 
         Repository(String repository) {
             this.repository = repository;
@@ -169,9 +176,9 @@ public class MavenLibrary extends Library {
 
     public static MavenLibrary of(String repository, String description) {
         val split = description.split(":");
-        if (!(split.length == 3)) throw new IllegalArgumentException(description);
+        if (!(split.length == 3 || split.length == 4)) throw new IllegalArgumentException(description);
         val itr = Arrays.asList(split).iterator();
-        return new MavenLibrary(repository, itr.next(), itr.next(), itr.next());
+        return new MavenLibrary(repository, itr.next(), itr.next(), itr.next(), itr.hasNext() ? itr.next() : null);
     }
 
 }

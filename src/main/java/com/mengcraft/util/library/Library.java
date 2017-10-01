@@ -18,6 +18,10 @@ public abstract class Library {
         return getFile().isFile();
     }
 
+    public boolean present() {
+        return false;
+    }
+
     public void init() {
         throw new UnsupportedOperationException("init");
     }

@@ -4,12 +4,11 @@ import lombok.SneakyThrows;
 import lombok.val;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import static com.mengcraft.util.RefHelper.invoke;
 
 /**
  * Created on 15-12-13.
@@ -18,35 +17,26 @@ public class LibraryLoader {
 
     @SneakyThrows
     public static void load(JavaPlugin plugin, Library library) {
-        val lib = library.getFile();
+        if (library.present()) {
+            plugin.getLogger().info("Library " + library + " present");
+        } else {
+            if (!library.isLoadable()) {
+                init(plugin, library);
+            }
 
-        if (!library.isLoadable()) {
-            load(plugin, library, lib);
-        }
+            for (Library sub : library.getSublist()) {
+                load(plugin, sub);
+            }
 
-        for (Library sub : library.getSublist()) {
-            load(plugin, sub);
-        }
+            val lib = library.getFile();
+            invoke(plugin.getClass().getClassLoader(), "addURL", lib.toURI().toURL());
 
-        val add = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-        add.setAccessible(true);
-        val classLoader = (URLClassLoader) plugin.getClass().getClassLoader();
-        add.invoke(classLoader, lib.toURI().toURL());
-
-        plugin.getLogger().info("Load library " + lib + " done");
-    }
-
-    public static void load(JavaPlugin plugin, String clz, Library library) {
-        try {
-            Class.forName(clz);
-        } catch (ClassNotFoundException ign) {
-            plugin.getLogger().info("Missing " + clz);
-            load(plugin, library);
+            plugin.getLogger().info("Load library " + lib + " done");
         }
     }
 
     @SneakyThrows
-    static void load(JavaPlugin plugin, Library library, File lib) {
+    static void init(JavaPlugin plugin, Library library) {
         plugin.getLogger().info("Loading library " + library);
 
         val run = CompletableFuture.runAsync(() -> {
@@ -54,6 +44,8 @@ public class LibraryLoader {
                 library.init();
             }
         });
+
+        val lib = library.getFile();
 
         while (!run.isDone()) {
             try {
