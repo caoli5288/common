@@ -7,29 +7,29 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by on 2017/7/3.
  */
 public enum RefHelper {
 
-    MAPPING;
+    INST;
 
-    private final Map<Type, Map> f = new HashMap<>();
-    private final Map<Type, Map> m = new HashMap<>();
+    final Map<Type, Map> f = map();
+    final Map<Type, Map> method = map();
 
 
     @SneakyThrows
-    static Field b(Class<?> type, String name) {
+    static Field getRef(Class<?> type, String name) {
         Field field = type.getDeclaredField(name);
         field.setAccessible(true);
         return field;
     }
 
     @SneakyThrows
-    static Method b(Class<?> type, String name, Class<?>[] p) {
+    static Method getRef(Class<?> type, String name, Class<?>[] p) {
         try {
             val method = type.getDeclaredMethod(name, p);
             method.setAccessible(true);
@@ -45,21 +45,18 @@ public enum RefHelper {
 
     @SneakyThrows
     static Field getFieldRef(Class<?> type, String name) {
-        Map<String, Field> map = MAPPING.f.computeIfAbsent(type, t -> new HashMap<>());
-        return map.computeIfAbsent(name, n -> b(type, name));
+        Map<String, Field> map = INST.f.computeIfAbsent(type, t -> map());
+        return map.computeIfAbsent(name, n -> getRef(type, name));
     }
 
     @SneakyThrows
     static Method getMethodRef(Class<?> type, String name, Class<?>[] p) {
-        Map<String, Method> map = MAPPING.m.computeIfAbsent(type, t -> new HashMap<>());
-        return map.computeIfAbsent(name + "|" + Arrays.toString(p), n -> b(type, name, p));
+        Map<String, Method> map = INST.method.computeIfAbsent(type, t -> map());
+        return map.computeIfAbsent(name + "|" + Arrays.toString(p), n -> getRef(type, name, p));
     }
 
-    static Class b(Object any) {
-        if (any instanceof Class) {
-            return (Class) any;
-        }
-        return any.getClass();
+    static <K, V> Map<K, V> map() {
+        return new ConcurrentHashMap<>();
     }
 
     @SneakyThrows
@@ -68,13 +65,14 @@ public enum RefHelper {
         for (int i = 0; i < input.length; i++) {
             p[i] = input[i].getClass();
         }
-        val invokable = getMethodRef(b(any), method, p);
-        return (T) invokable.invoke(any, input);
+        val i = getMethodRef(any.getClass(), method, p);
+        return (T) i.invoke(any, input);
     }
 
     @SneakyThrows
     public static <T> T getField(Object any, String field) {
-        Field ref = getFieldRef(b(any), field);
-        return (T) ref.get(any);
+        val i = getFieldRef(any.getClass(), field);
+        return (T) i.get(any);
     }
+
 }
