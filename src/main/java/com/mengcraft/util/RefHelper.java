@@ -75,4 +75,10 @@ public enum RefHelper {
         return (T) i.get(any);
     }
 
+    @SneakyThrows
+    public static void setField(Object any, String field, Object what) {
+        val i = getFieldRef(any.getClass(), field);
+        i.set(any, what);
+    }
+
 }
