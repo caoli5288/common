@@ -3,6 +3,7 @@ package com.mengcraft.util;
 import lombok.SneakyThrows;
 import lombok.val;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -17,8 +18,9 @@ public enum RefHelper {
 
     INST;
 
-    final Map<Type, Map> f = map();
-    final Map<Type, Map> method = map();
+    final Map<Type, Map<String, Constructor>> construct = map();
+    final Map<Type, Map<String, Method>> method = map();
+    final Map<Type, Map<String, Field>> f = map();
 
 
     @SneakyThrows
@@ -59,12 +61,18 @@ public enum RefHelper {
         return new ConcurrentHashMap<>();
     }
 
+    static Class<?>[] classArray(Object[] input) {
+        int len = input.length;
+        Class<?>[] out = new Class[len];
+        while (!(--len == -1)) {
+            out[len] = input[len].getClass();
+        }
+        return out;
+    }
+
     @SneakyThrows
     public static <T> T invoke(Object any, String method, Object... input) {
-        Class<?>[] p = new Class[input.length];
-        for (int i = 0; i < input.length; i++) {
-            p[i] = input[i].getClass();
-        }
+        Class<?>[] p = classArray(input);
         val i = getMethodRef(any.getClass(), method, p);
         return (T) i.invoke(any, input);
     }
@@ -79,6 +87,21 @@ public enum RefHelper {
     public static void setField(Object any, String field, Object what) {
         val i = getFieldRef(any.getClass(), field);
         i.set(any, what);
+    }
+
+    @SneakyThrows
+    public static <T> T object(Class<?> type, Object... param) {
+        val map = INST.construct.computeIfAbsent(type, $ -> map());
+        val classArray = classArray(param);
+        val ref = map.computeIfAbsent(Arrays.toString(classArray), $ -> getRef(type, classArray));
+        return (T) ref.newInstance(param);
+    }
+
+    @SneakyThrows
+    static Constructor getRef(Class<?> type, Class<?>[] ar) {
+        val out = type.getDeclaredConstructor(ar);
+        out.setAccessible(true);
+        return out;
     }
 
 }
