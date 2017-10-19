@@ -1,43 +1,19 @@
 package com.mengcraft.util;
 
+import lombok.Builder;
+import lombok.Data;
+
 /**
  * Created on 16-3-13.
  */
+@Builder
+@Data
 public class TitleEntry {
 
-    public final String title;
-    public final String sub;
+    private String title;
+    private String subtitle;
 
-    public int fadeIn;
-    public int fadeOut;
-    public int display;
-
-    public TitleEntry(String title, String sub, int fadeIn, int display, int fadeOut) {
-        this.title = title;
-        this.sub = sub;
-        this.fadeIn = fadeIn;
-        this.display = display;
-        this.fadeOut = fadeOut;
-    }
-
-    public TitleEntry(String title, String sub) {
-        this.title = title;
-        this.sub = sub;
-    }
-
-    public TitleEntry setFadeIn(int fadeIn) {
-        this.fadeIn = fadeIn;
-        return this;
-    }
-
-    public TitleEntry setFadeOut(int fadeOut) {
-        this.fadeOut = fadeOut;
-        return this;
-    }
-
-    public TitleEntry setDisplay(int display) {
-        this.display = display;
-        return this;
-    }
-
+    private int fadeIn;
+    private int fadeOut;
+    private int display;
 }

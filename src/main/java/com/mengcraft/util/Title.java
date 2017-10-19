@@ -1,6 +1,7 @@
 package com.mengcraft.util;
 
 import lombok.SneakyThrows;
+import lombok.val;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -35,7 +36,7 @@ public class Title {
             "    sendPacket(p, new PacketPlayOutTitle(EnumTitleAction.TITLE, new ChatComponentText(title.title)));\n" +
             "}\n" +
             "function sendSubTitle(p, title) {\n" +
-            "    sendPacket(p, new PacketPlayOutTitle(EnumTitleAction.SUBTITLE, new ChatComponentText(title.sub)));\n" +
+            "    sendPacket(p, new PacketPlayOutTitle(EnumTitleAction.SUBTITLE, new ChatComponentText(title.subtitle)));\n" +
             "}\n" +
             "function sendTime(p, title) {\n" +
             "    sendPacket(p, new PacketPlayOutTitle(title.fadeIn, title.display, title.fadeOut));\n" +
@@ -64,8 +65,16 @@ public class Title {
         }
     }
 
+    public static void send(Player p, String title, String subtitle) {
+        send(p, TitleEntry.builder().title(title).subtitle(subtitle).build());
+    }
+
     public static void send(Player p, TitleEntry entry) {
         Hold.INSTANCE.title.send(p, entry);
+    }
+
+    public static void send(Iterable<Player> list, TitleEntry entry) {
+        for (val p : list) send(p, entry);
     }
 
 }
