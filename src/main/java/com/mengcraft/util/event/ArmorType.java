@@ -3,12 +3,10 @@ package com.mengcraft.util.event;
 import org.bukkit.Material;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 import static org.bukkit.Material.*;
 
@@ -17,19 +15,23 @@ import static org.bukkit.Material.*;
  */
 public enum ArmorType {
 
-    HELMET(PlayerInventory::getHelmet),
-    CHESTPLATE(PlayerInventory::getChestplate),
-    LEGGINGS(PlayerInventory::getLeggings),
-    BOOTS(PlayerInventory::getBoots);
+    HELMET(39),
+    CHESTPLATE(38),
+    LEGGINGS(37),
+    BOOTS(36);
 
-    private final Function<PlayerInventory, ItemStack> func;
+    private final int value;
 
-    ArmorType(Function<PlayerInventory, ItemStack> func) {
-        this.func = func;
+    ArmorType(int value) {
+        this.value = value;
     }
 
     public ItemStack itemFor(HumanEntity p) {
-        return func.apply(p.getInventory());
+        return p.getInventory().getItem(value);
+    }
+
+    public int getValue() {
+        return value;
     }
 
     private static final Map<Material, ArmorType> MAPPING = new EnumMap<>(new HashMap<Material, ArmorType>() {{

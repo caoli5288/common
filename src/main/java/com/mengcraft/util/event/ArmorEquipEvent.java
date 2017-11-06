@@ -13,13 +13,12 @@ import org.bukkit.inventory.ItemStack;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @Data
-public class ArmorEquipEvent extends Event implements Cancellable {
+public class ArmorEquipEvent extends Event {
 
     public static final HandlerList HANDLER_LIST = new HandlerList();
 
     private final HumanEntity player;
     private final ItemStack armor;
-    private boolean cancelled;
 
     @Override
     public HandlerList getHandlers() {
