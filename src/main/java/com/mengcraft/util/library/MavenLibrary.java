@@ -3,7 +3,8 @@ package com.mengcraft.util.library;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
-import com.mengcraft.util.MD5;
+import com.mengcraft.util.Digest;
+import com.mengcraft.util.Hex;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -136,12 +137,13 @@ public class MavenLibrary extends Library {
             if (check.isFile()) {
                 val buf = ByteBuffer.allocate(1 << 16);
                 FileChannel channel = FileChannel.open(file.toPath());
+                Digest digest = Digest.build(Digest.MD5);
                 while (!(channel.read(buf) == -1)) {
                     buf.flip();
-                    MD5.update(buf);
+                    digest.update(buf);
                     buf.compact();
                 }
-                return Files.newBufferedReader(check.toPath()).readLine().equals(MD5.digest());
+                return Files.newBufferedReader(check.toPath()).readLine().equals(Hex.hex(digest.result()));
             }
         }
         return false;
