@@ -1,5 +1,6 @@
 package com.mengcraft.util.http;
 
+import lombok.NonNull;
 import lombok.val;
 
 import java.util.concurrent.Future;
@@ -41,11 +42,10 @@ public final class HTTP {
         flush(Long.MAX_VALUE);
     }
 
-    public static Future<Integer> open(HTTPRequest request) {
-        thr(nil(request), "open " + request);
+    public static Future<Integer> open(@NonNull HTTPRequest request) {
         HTTPTask.LATCH.incrementAndGet();
         return supplyAsync(() -> {
-            val task = new HTTPTask(request);
+            val task = new HTTPTask(request, null);
             try {
                 return task.call();
             } finally {
@@ -54,12 +54,11 @@ public final class HTTP {
         });
     }
 
-    public static void open(HTTPRequest request, Callback back) {
+    public static void open(@NonNull HTTPRequest request, @NonNull Callback back) {
         thr(nil(request) || nil(back), "open " + request + " " + back);
         HTTPTask.LATCH.incrementAndGet();
         runAsync(() -> {
-            request.setCallback(back);
-            val task = new HTTPTask(request);
+            val task = new HTTPTask(request, back);
             try {
                 task.call();
             } catch (Exception e) {

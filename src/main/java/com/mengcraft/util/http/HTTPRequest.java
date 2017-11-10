@@ -20,7 +20,6 @@ public class HTTPRequest {
     private HTTPHeader header = new HTTPHeader();
 
     private byte[] content;
-    private Callback callback;
 
     private HTTPRequest(String address, HTTPMethod method) {
         this.address = address;
@@ -53,18 +52,6 @@ public class HTTPRequest {
         this.content = content.getBytes(Charset.forName("UTF-8"));
         return this;
     }
-
-    //==== Access by HTTP::open only
-
-    Callback getCallback() {
-        return callback;
-    }
-
-    void setCallback(Callback callback) {
-        this.callback = callback;
-    }
-
-    //====
 
     public static HTTPRequest build(String address) {
         return build(address, HTTPMethod.GET);
