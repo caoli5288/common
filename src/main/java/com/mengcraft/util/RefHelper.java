@@ -25,9 +25,16 @@ public enum RefHelper {
 
     @SneakyThrows
     static Field getRef(Class<?> type, String name) {
-        Field field = type.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
+        try {
+            Field field = type.getDeclaredField(name);
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException e) {
+            if (!(type == Object.class)) {
+                return getRef(type.getSuperclass(), name);
+            }
+            throw e;
+        }
     }
 
     @SneakyThrows
@@ -39,9 +46,8 @@ public enum RefHelper {
         } catch (NoSuchMethodException e) {
             if (!(type == Object.class)) {
                 return getMethodRef(type.getSuperclass(), name, p);
-            } else {
-                throw e;
             }
+            throw e;
         }
     }
 
