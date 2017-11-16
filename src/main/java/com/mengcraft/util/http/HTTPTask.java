@@ -64,27 +64,32 @@ public class HTTPTask implements Callable<Integer> {
             }
         }
 
-        int result = conn.getResponseCode();
-
+        int result = conn.getResponseCode();// May exception here
         if (!HTTP.nil(callback)) {
             try (val dataInput = conn.getInputStream()) {
-                callback.call(null, new Response(
-                        request.getAddress(),
+                val response = new Response(request.getAddress(),
                         request.getMethod(),
                         result,
-                        dataInput));
-            } catch (Exception e) {
-                callback.call(e, null);// overdrive it
+                        dataInput
+                );
+                callback.call(null, response);
             }
         }
 
         conn.disconnect();
+
         return result;
     }
 
     @Override
     public Integer call() {
-        return conn();
+        int result = -1;
+        try {
+            result = conn();
+        } catch (Exception e) {
+            if (!HTTP.nil(callback)) callback.call(e, null);
+        }
+        return result;
     }
 
     static final Latch LATCH = new Latch();
