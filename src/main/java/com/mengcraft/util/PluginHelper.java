@@ -1,6 +1,5 @@
 package com.mengcraft.util;
 
-import com.google.common.collect.ImmutableList;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -11,6 +10,7 @@ import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -46,7 +46,7 @@ public class PluginHelper {
         public boolean execute(CommandSender who, String l, String[] i) {
             if (testPermission(who)) {
                 try {
-                    exec.exec(who, ImmutableList.copyOf(i));
+                    exec.exec(who, Arrays.asList(i));
                     return true;
                 } catch (Exception e) {
                     who.sendMessage(ChatColor.RED + e.toString());

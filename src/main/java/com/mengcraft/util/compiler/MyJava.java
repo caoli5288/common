@@ -1,11 +1,11 @@
 package com.mengcraft.util.compiler;
 
-import com.google.common.collect.ImmutableList;
 import lombok.SneakyThrows;
 import lombok.val;
 
 import javax.tools.ToolProvider;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +29,7 @@ public enum MyJava {
     public static Class<?> compile(ClassLoader ctx, String name, String java) {
         val tool = ToolProvider.getSystemJavaCompiler();
         val man = new MyJavaFileManager(tool.getStandardFileManager(null, null, null));
-        val i = ImmutableList.of(new MyJavaFile(name, java));
+        val i = Collections.singletonList(new MyJavaFile(name, java));
         val compileTask = tool.getTask(null, man, null, null, null, i);
         if (compileTask.call()) {
             val all = man.getAll();
