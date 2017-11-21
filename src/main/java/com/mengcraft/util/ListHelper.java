@@ -1,5 +1,7 @@
 package com.mengcraft.util;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import lombok.val;
 
 import java.util.ArrayList;
@@ -9,6 +11,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Created on 16-3-9.
@@ -93,6 +97,19 @@ public final class ListHelper {
         List<T> out = new ArrayList<>();
         forEach(in, p, t -> {
             out.add(t);
+        });
+        return out;
+    }
+
+    public static <T> List<T> filter(List<T> all, Predicate<T> filter) {
+        return all.stream().filter(filter).collect(toList());
+    }
+
+    public static <K, V> Multimap<K, V> groupBy(List<V> all, Function<V, K> func, K defaultKey) {
+        Multimap<K, V> out = ArrayListMultimap.create();
+        all.forEach(l -> {
+            K key = func.apply(l);
+            out.put((key == null && !(defaultKey == null)) ? defaultKey : key, l);
         });
         return out;
     }
