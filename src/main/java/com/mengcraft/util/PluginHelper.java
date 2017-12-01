@@ -1,14 +1,17 @@
 package com.mengcraft.util;
 
+import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
@@ -33,28 +36,23 @@ public class PluginHelper {
         }
     }
 
-    public static class Exec extends Command {
-
-        private final IExec exec;
-
-        Exec(String name, IExec exec) {
-            super(name);
-            this.exec = exec;
-        }
-
-        @Override
-        public boolean execute(CommandSender who, String l, String[] i) {
-            if (testPermission(who)) {
-                try {
-                    exec.exec(who, Arrays.asList(i));
-                    return true;
-                } catch (Exception e) {
-                    who.sendMessage(ChatColor.RED + e.toString());
-                    Bukkit.getLogger().log(Level.WARNING, e.toString(), e);
-                }
-            }
-            return false;
-        }
+    @SneakyThrows
+    public static void addExecutor(Plugin plugin, Command command) {
+        Field f = SimplePluginManager.class.getDeclaredField("commandMap");
+        f.setAccessible(true);
+        CommandMap map = (CommandMap) f.get(plugin.getServer().getPluginManager());
+        Constructor<PluginCommand> init = PluginCommand.class.getDeclaredConstructor(String.class, Plugin.class);
+        init.setAccessible(true);
+        PluginCommand inject = init.newInstance(command.getName(), plugin);
+        inject.setExecutor((who, __, label, input) -> command.execute(who, label, input));
+        inject.setAliases(command.getAliases());
+        inject.setDescription(command.getDescription());
+        inject.setLabel(command.getLabel());
+        inject.setName(command.getName());
+        inject.setPermission(command.getPermission());
+        inject.setPermissionMessage(command.getPermissionMessage());
+        inject.setUsage(command.getUsage());
+        map.register(plugin.getName().toLowerCase(), inject);
     }
 
     public interface IExec {
@@ -90,14 +88,25 @@ public class PluginHelper {
         return out.getTaskId();
     }
 
-    public static void addExecutor(Plugin plugin, Command command) {
-        try {
-            Field f = SimplePluginManager.class.getDeclaredField("commandMap");
-            f.setAccessible(true);
-            CommandMap map = (CommandMap) f.get(plugin.getServer().getPluginManager());
-            map.register(plugin.getName().toLowerCase(), command);
-        } catch (ReflectiveOperationException e) {
-            e.printStackTrace();
+    public static class Exec extends Command {
+
+        private final IExec exec;
+
+        Exec(String name, IExec exec) {
+            super(name);
+            this.exec = exec;
+        }
+
+        @Override
+        public boolean execute(CommandSender who, String l, String[] i) {
+            try {
+                exec.exec(who, Arrays.asList(i));
+                return true;
+            } catch (Exception e) {
+                who.sendMessage(ChatColor.RED + e.toString());
+                Bukkit.getLogger().log(Level.WARNING, e.toString(), e);
+            }
+            return false;
         }
     }
 
