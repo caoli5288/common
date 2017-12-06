@@ -59,11 +59,11 @@ public final class ListHelper {
 
     public static <E> String join(Collection<E> i, String separator) {
         val out = new StringBuilder();
-        val l = i.iterator();
-        while (l.hasNext()) {
+        i.forEach(l -> {
             if (out.length() > 0) out.append(separator);
-            out.append(l.next());
-        }
+            out.append(l);
+
+        });
         return out.toString();
     }
 
