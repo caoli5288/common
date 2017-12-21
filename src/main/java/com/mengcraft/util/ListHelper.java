@@ -2,15 +2,18 @@ package com.mengcraft.util;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import lombok.Data;
 import lombok.val;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.StreamSupport;
 
 import static java.util.stream.Collectors.toList;
 
@@ -27,22 +30,12 @@ public final class ListHelper {
         return out;
     }
 
-    public static <E> int count(Collection<E> i, Object obj) {
-        int count = 0;
-        for (E e : i) {
-            if (e.equals(obj)) {
-                count++;
-            }
-        }
-        return count;
+    public static <E> int count(Collection<E> input, Object any) {
+        return Math.toIntExact(input.stream().filter(i -> i.equals(any)).count());
     }
 
     public static <R, E> List<R> collect(List<E> in, Function<E, R> func) {
-        List<R> out = new ArrayList<>(in.size());
-        for (E i : in) {
-            out.add(func.apply(i));
-        }
-        return out;
+        return in.stream().map(func).collect(toList());
     }
 
     public static <T> T[] asArray(T... i) {// 这里会有语义问题
@@ -67,30 +60,12 @@ public final class ListHelper {
         return out.toString();
     }
 
-    public static <E> void forEach(Collection<E> i, Predicate<E> p, Consumer<E> c) {
-        for (E e : i) {
-            if (p.test(e)) {
-                c.accept(e);
-            }
-        }
-    }
-
     public static <T> void forEachRemaining(Iterator<T> i, Predicate<T> p, Consumer<T> c) {
-        i.forEachRemaining(t -> {
-            if (p.test(t)) {
-                c.accept(t);
-            }
-        });
+        StreamSupport.stream(((Iterable<T>) (() -> i)).spliterator(), false).filter(p).forEach(c);
     }
 
     public static <T> List<T> remove(Collection<T> origin, Collection<T> other) {
-        List<T> output = new ArrayList<>(origin);
-        for (T element : other) {
-            while (output.remove(element)) {
-                ;
-            }
-        }
-        return output;
+        return origin.stream().filter(i -> !other.contains(i)).collect(toList());
     }
 
     public static <T> List<T> reduce(Collection<T> in, Predicate<T> p) {
@@ -99,6 +74,10 @@ public final class ListHelper {
             out.add(t);
         });
         return out;
+    }
+
+    public static <E> void forEach(Collection<E> i, Predicate<E> p, Consumer<E> c) {
+        i.stream().filter(p).forEach(c);
     }
 
     public static <T> List<T> filter(List<T> all, Predicate<T> filter) {
@@ -112,6 +91,17 @@ public final class ListHelper {
             out.put((key == null && !(defaultKey == null)) ? defaultKey : key, l);
         });
         return out;
+    }
+
+    public static <I, K, V> void mapping(Collection<I> input, Function<I, Pair<K, V>> func, Map<K, V> map) {
+        input.stream().map(func).forEach(pair -> map.put(pair.key, pair.value));
+    }
+
+    @Data
+    public static class Pair<K, V> {
+
+        private final K key;
+        private final V value;
     }
 
 }
