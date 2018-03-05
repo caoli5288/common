@@ -60,6 +60,17 @@ public final class ListHelper {
         return out.toString();
     }
 
+    public static <E> String join(Iterator<E> input, String separator) {
+        StringBuilder buf = new StringBuilder();
+        input.forEachRemaining(l -> {
+            if (buf.length() >= 1) {
+                buf.append(separator);
+            }
+            buf.append(String.valueOf(l));
+        });
+        return String.valueOf(buf);
+    }
+
     public static <T> void forEachRemaining(Iterator<T> i, Predicate<T> p, Consumer<T> c) {
         StreamSupport.stream(((Iterable<T>) (() -> i)).spliterator(), false).filter(p).forEach(c);
     }
