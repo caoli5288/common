@@ -7,8 +7,10 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.lang.reflect.Constructor;
@@ -119,6 +121,20 @@ public class PluginHelper {
         e.setPermission(permission);
         e.setPermissionMessage(ChatColor.RED + "您没有权限执行此类指令，请联系管理！");
         addExecutor(plugin, e);
+    }
+
+    public static void updateYmlVersion(JavaPlugin plugin, String versionVar, int versionInt) {
+        final FileConfiguration yml = plugin.getConfig();
+        final int i = yml.getInt(versionVar);
+        if (i < versionInt) {
+            yml.options().copyDefaults(true);
+            yml.set(versionVar, versionInt);
+            plugin.saveConfig();
+        }
+    }
+
+    public static void updateYmlVersion(JavaPlugin plugin, int version) {
+        updateYmlVersion(plugin, "config_version", version);
     }
 
 }
