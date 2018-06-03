@@ -19,13 +19,12 @@ import java.util.regex.Pattern;
  */
 @EqualsAndHashCode(of = "request")
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-public class HTTPTask implements Callable<Integer> {
+public class HTTPCall implements Callable<Integer> {
 
     private static final Pattern PROTOCOL = Pattern.compile("^http(s)?$");
     private static final int TIMEOUT = 60000;
-
     private final HTTPRequest request;
-    private final Callback callback;
+    private final HTTP.Callback callback;
 
     private void valid(String protocol) throws IOException {
         if (!PROTOCOL.matcher(protocol).matches()) {
@@ -66,11 +65,11 @@ public class HTTPTask implements Callable<Integer> {
 
         int result = conn.getResponseCode();// May exception here
         if (!HTTP.nil(callback)) {
-            try (val dataInput = conn.getInputStream()) {
-                val response = new Response(request.getAddress(),
+            try (val inputStr = conn.getInputStream()) {
+                val response = new HTTP.Response(request.getAddress(),
                         request.getMethod(),
                         result,
-                        dataInput
+                        inputStr
                 );
                 callback.call(null, response);
             }
@@ -91,7 +90,5 @@ public class HTTPTask implements Callable<Integer> {
         }
         return result;
     }
-
-    static final Latch LATCH = new Latch();
 
 }

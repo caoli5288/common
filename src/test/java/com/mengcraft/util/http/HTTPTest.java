@@ -14,7 +14,7 @@ public class HTTPTest {
         HTTPRequest request = HTTPRequest.build("https://www.baidu.com");
         Future<Integer> bai = HTTP.open(request);
 
-        HTTPRequest icon = HTTPRequest.build("http://setting.smartisan.com/app/icon", HTTPMethod.POST)
+        HTTPRequest icon = HTTPRequest.build("http://setting.smartisan.com/app/icon", HTTPRequest.Method.POST)
                 .setContentType(HTTPHeader.ContentType.JSON)
                 .setMessageContent("[{\"package\":\"com.sina.weibo\"}]");
 

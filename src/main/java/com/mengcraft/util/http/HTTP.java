@@ -1,8 +1,13 @@
 package com.mengcraft.util.http;
 
-import lombok.NonNull;
-import lombok.val;
+import com.mengcraft.util.Latch;
+import lombok.*;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.UUID;
 import java.util.concurrent.Future;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
@@ -27,6 +32,8 @@ public final class HTTP {
         return i == null;
     }
 
+    private static final Latch LATCH = new Latch();
+
     /**
      * Blocking until pool flushed.
      *
@@ -35,7 +42,7 @@ public final class HTTP {
      * @throws InterruptedException thrown if interrupted
      */
     public static void flush(long time) throws InterruptedException {
-        HTTPTask.LATCH.hold(time);
+        LATCH.hold(time);
     }
 
     public static void flush() throws InterruptedException {
@@ -43,30 +50,66 @@ public final class HTTP {
     }
 
     public static Future<Integer> open(@NonNull HTTPRequest request) {
-        HTTPTask.LATCH.incrementAndGet();
+        LATCH.incrementAndGet();
         return supplyAsync(() -> {
-            val task = new HTTPTask(request, null);
+            val task = new HTTPCall(request, null);
             try {
                 return task.call();
             } finally {
-                HTTPTask.LATCH.decrementAndNotify();
+                LATCH.decrementAndNotify();
             }
         });
     }
 
     public static void open(@NonNull HTTPRequest request, @NonNull Callback back) {
         thr(nil(request) || nil(back), "open " + request + " " + back);
-        HTTPTask.LATCH.incrementAndGet();
+        LATCH.incrementAndGet();
         runAsync(() -> {
-            val task = new HTTPTask(request, back);
+            val task = new HTTPCall(request, back);
             try {
                 task.call();
             } catch (Exception e) {
                 back.call(e, null);
             } finally {
-                HTTPTask.LATCH.decrementAndNotify();
+                LATCH.decrementAndNotify();
             }
         });
+    }
+
+    public interface Callback {
+
+        void call(Exception e, Response response);
+    }
+
+    @Data
+    @EqualsAndHashCode(of = "id")
+    @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
+    public static class Response {
+
+        private final UUID id = UUID.randomUUID();
+        private final String request;
+        private final HTTPRequest.Method requestMethod;
+        private final int response;
+        private final InputStream dataInput;
+
+        private String message;
+
+        public String getMessage() {
+            if (!HTTP.nil(message)) return message;
+
+            Reader reader = new InputStreamReader(dataInput);
+            StringBuilder b = new StringBuilder();
+            char[] buf = new char[8192];
+            try {
+                for (int i; (i = reader.read(buf)) > -1; ) {
+                    b.append(buf, 0, i);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return (message = b.toString());
+        }
     }
 
 }

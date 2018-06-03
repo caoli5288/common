@@ -1,8 +1,14 @@
 package com.mengcraft.util.http;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.UUID;
@@ -16,14 +22,23 @@ public class HTTPRequest {
 
     private final UUID id = UUID.randomUUID();
     private final String address;
-    private HTTPMethod method;
+    private Method method;
     private HTTPHeader header = new HTTPHeader();
 
     private byte[] content;
 
-    private HTTPRequest(String address, HTTPMethod method) {
+    private HTTPRequest(String address, Method method) {
         this.address = address;
         this.method = method;
+    }
+
+    public static HTTPRequest build(String address) {
+        return build(address, Method.GET);
+    }
+
+    public static HTTPRequest build(String address, Method method) {
+        HTTP.thr(HTTP.nil(address) || HTTP.nil(method), "null");
+        return new HTTPRequest(address, method);
     }
 
     public HTTPRequest setHeader(Map<String, String> input) {
@@ -34,13 +49,18 @@ public class HTTPRequest {
 
     public HTTPRequest setHeader(String key, Object value) {
         HTTP.thr(HTTP.nil(key), "null");
-        header.add(key, value.toString());
+        header.add(key, String.valueOf(value));
         return this;
     }
 
     public HTTPRequest setContentType(HTTPHeader.ContentType type) {
         HTTP.thr(HTTP.nil(type), "null");
         return setHeader(HTTPHeader.CONTENT_TYPE, type);
+    }
+
+    public HTTPRequest setAccept(HTTPHeader.ContentType type) {
+        HTTP.thr(HTTP.nil(type), "null");
+        return setHeader(HTTPHeader.ACCEPT, type);
     }
 
     public HTTPRequest setContent(byte[] content) {
@@ -53,13 +73,9 @@ public class HTTPRequest {
         return this;
     }
 
-    public static HTTPRequest build(String address) {
-        return build(address, HTTPMethod.GET);
-    }
+    public enum Method {
 
-    public static HTTPRequest build(String address, HTTPMethod method) {
-        HTTP.thr(HTTP.nil(address) || HTTP.nil(method), "null");
-        return new HTTPRequest(address, method);
+        GET, HEAD, POST, PUT, DELETE
     }
 
 }
