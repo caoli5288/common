@@ -1,8 +1,8 @@
 package com.mengcraft.util;
 
-import com.google.common.collect.Maps;
-
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class FunctionRegistry<T, R> {
@@ -14,7 +14,7 @@ public class FunctionRegistry<T, R> {
     }
 
     public FunctionRegistry() {
-        all = Maps.newHashMap();
+        all = new HashMap<>();
     }
 
     public void register(Object key, Function<T, R> function) {
@@ -26,5 +26,9 @@ public class FunctionRegistry<T, R> {
             return all.get(key).apply(input);
         }
         return null;
+    }
+
+    public Set<Object> getKeys() {
+        return all.keySet();
     }
 }

@@ -1,8 +1,8 @@
 package com.mengcraft.util;
 
-import com.google.common.collect.Maps;
-
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 public class BiFunctionRegistry<T, U, R> {
@@ -14,7 +14,7 @@ public class BiFunctionRegistry<T, U, R> {
     }
 
     public BiFunctionRegistry() {
-        all = Maps.newHashMap();
+        all = new HashMap<>();
     }
 
     public void register(Object key, BiFunction<T, U, R> function) {
@@ -26,5 +26,9 @@ public class BiFunctionRegistry<T, U, R> {
             return all.get(key).apply(i, l);
         }
         return null;
+    }
+
+    public Set<Object> getKeys() {
+        return all.keySet();
     }
 }
