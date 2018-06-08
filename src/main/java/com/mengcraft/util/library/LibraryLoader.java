@@ -8,8 +8,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.mengcraft.util.RefHelper.invoke;
-
 /**
  * Created on 15-12-13.
  */

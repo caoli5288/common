@@ -14,9 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by on 2017/7/3.
  */
-public enum RefHelper {
+public enum Reflector {
 
-    INST;
+    REFLECTOR;
 
     final Map<Type, Map<String, Constructor>> construct = map();
     final Map<Type, Map<String, Method>> method = map();
@@ -53,13 +53,13 @@ public enum RefHelper {
 
     @SneakyThrows
     static Field getFieldRef(Class<?> type, String name) {
-        Map<String, Field> map = INST.f.computeIfAbsent(type, t -> map());
+        Map<String, Field> map = REFLECTOR.f.computeIfAbsent(type, t -> map());
         return map.computeIfAbsent(name, n -> getRef(type, name));
     }
 
     @SneakyThrows
     static Method getMethodRef(Class<?> type, String name, Class<?>[] p) {
-        Map<String, Method> map = INST.method.computeIfAbsent(type, t -> map());
+        Map<String, Method> map = REFLECTOR.method.computeIfAbsent(type, t -> map());
         return map.computeIfAbsent(name + "|" + Arrays.toString(p), n -> getRef(type, name, p));
     }
 
@@ -97,7 +97,7 @@ public enum RefHelper {
 
     @SneakyThrows
     public static <T> T object(Class<?> type, Object... param) {
-        val map = INST.construct.computeIfAbsent(type, $ -> map());
+        val map = REFLECTOR.construct.computeIfAbsent(type, $ -> map());
         val classArray = classArray(param);
         val ref = map.computeIfAbsent(Arrays.toString(classArray), $ -> getRef(type, classArray));
         return (T) ref.newInstance(param);
