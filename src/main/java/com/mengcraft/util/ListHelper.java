@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -71,24 +72,35 @@ public final class ListHelper {
         return String.valueOf(buf);
     }
 
-    public static <T> void forEachRemaining(Iterator<T> i, Predicate<T> p, Consumer<T> c) {
-        StreamSupport.stream(((Iterable<T>) (() -> i)).spliterator(), false).filter(p).forEach(c);
-    }
-
     public static <T> List<T> remove(Collection<T> origin, Collection<T> other) {
         return origin.stream().filter(i -> !other.contains(i)).collect(toList());
     }
 
     public static <T> List<T> reduce(Collection<T> in, Predicate<T> p) {
         List<T> out = new ArrayList<>();
-        forEach(in, p, t -> {
+        walk(in, p, t -> {
             out.add(t);
         });
         return out;
     }
 
-    public static <E> void forEach(Collection<E> i, Predicate<E> p, Consumer<E> c) {
+    public static <E> void walk(Iterator<E> i, Predicate<E> p, Consumer<E> c) {
+        StreamSupport.stream(((Iterable<E>) (() -> i)).spliterator(), false).filter(p).forEach(c);
+    }
+
+    public static <E> void walk(Collection<E> i, Predicate<E> p, Consumer<E> c) {
         i.stream().filter(p).forEach(c);
+    }
+
+    public static <E> void walk(Collection<E> input, BiConsumer<E, Integer> consumer) {
+        if (input == null || input.isEmpty() || consumer == null) {
+            return;
+        }
+        Iterator<E> itr = input.iterator();
+        int idx = 0;
+        while (itr.hasNext()) {
+            consumer.accept(itr.next(), idx++);
+        }
     }
 
     public static <T> List<T> filter(List<T> all, Predicate<T> filter) {
