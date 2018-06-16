@@ -61,7 +61,7 @@ public final class VarInt {
      * @param buf InputStream
      * @return Signed int
      */
-    public static int readVarInt(ByteBuf buf) throws IOException {
+    public static int readVarInt(ByteBuf buf) {
         return decodeZigZag32(readUnsignedVarInt(buf));
     }
 
@@ -69,7 +69,7 @@ public final class VarInt {
      * @param buf InputStream
      * @return Unsigned int
      */
-    public static long readUnsignedVarInt(ByteBuf buf) throws IOException {
+    public static long readUnsignedVarInt(ByteBuf buf) {
         return read(buf, 5);
     }
 
@@ -81,7 +81,7 @@ public final class VarInt {
         return read(buf, 10);
     }
 
-    private static void write(ByteBuf buf, long value) throws IOException {
+    private static void write(ByteBuf buf, long value) {
         do {
             byte b = (byte) (value & 0b01111111);
             // Note: >>> means that the sign bit is shifted with the rest of the number rather than being left alone
@@ -97,7 +97,7 @@ public final class VarInt {
      * @param buf   OutputStream
      * @param value Signed int
      */
-    public static void writeVarInt(ByteBuf buf, int value) throws IOException {
+    public static void writeVarInt(ByteBuf buf, int value) {
         writeUnsignedVarInt(buf, encodeZigZag32(value));
     }
 
@@ -105,7 +105,7 @@ public final class VarInt {
      * @param buf   OutputStream
      * @param value Unsigned int
      */
-    public static void writeUnsignedVarInt(ByteBuf buf, long value) throws IOException {
+    public static void writeUnsignedVarInt(ByteBuf buf, long value) {
         write(buf, value);
     }
 
@@ -114,7 +114,7 @@ public final class VarInt {
      * @param buf   OutputStream
      * @param value Signed long
      */
-    public static void writeVarLong(ByteBuf buf, long value) throws IOException {
+    public static void writeVarLong(ByteBuf buf, long value) {
         writeUnsignedVarLong(buf, encodeZigZag64(value));
     }
 
@@ -122,7 +122,7 @@ public final class VarInt {
      * @param buf   OutputStream
      * @param value Unsigned long
      */
-    public static void writeUnsignedVarLong(ByteBuf buf, long value) throws IOException {
+    public static void writeUnsignedVarLong(ByteBuf buf, long value) {
         write(buf, value);
     }
 }
