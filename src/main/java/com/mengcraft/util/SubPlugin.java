@@ -1,6 +1,5 @@
 package com.mengcraft.util;
 
-import com.avaje.ebean.EbeanServer;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -129,11 +128,6 @@ public abstract class SubPlugin extends PluginBase {
     @Override
     public void setNaggable(boolean b) {
         parent.setNaggable(b);
-    }
-
-    @Override
-    public EbeanServer getDatabase() {
-        return parent.getDatabase();
     }
 
     @Override
