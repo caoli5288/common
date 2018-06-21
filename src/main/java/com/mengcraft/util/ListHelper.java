@@ -96,10 +96,9 @@ public final class ListHelper {
         if (input == null || input.isEmpty() || consumer == null) {
             return;
         }
-        Iterator<E> itr = input.iterator();
-        int idx = 0;
-        while (itr.hasNext()) {
-            consumer.accept(itr.next(), idx++);
+        Iterator<E> it = input.iterator();
+        for (int idx = -1; it.hasNext(); ) {
+            consumer.accept(it.next(), ++idx);
         }
     }
 

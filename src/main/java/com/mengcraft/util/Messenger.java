@@ -59,11 +59,11 @@ public class Messenger {
         return find(path, "");
     }
 
-    public void sendLine(CommandSender receive, String line) {
+    public static void sendLine(CommandSender receive, String line) {
         receive.sendMessage(ChatColor.translateAlternateColorCodes('&', line));
     }
 
-    public void sendMessage(CommandSender receive, String message) {
+    public static void sendMessage(CommandSender receive, String message) {
         if (message.indexOf('\n') == -1) {
             sendLine(receive, message);
         } else {
