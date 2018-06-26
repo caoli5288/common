@@ -78,9 +78,7 @@ public final class ListHelper {
 
     public static <T> List<T> reduce(Collection<T> in, Predicate<T> p) {
         List<T> out = new ArrayList<>();
-        walk(in, p, t -> {
-            out.add(t);
-        });
+        walk(in, p, out::add);
         return out;
     }
 
@@ -106,24 +104,13 @@ public final class ListHelper {
         return all.stream().filter(filter).collect(toList());
     }
 
-    public static <K, V> Multimap<K, V> groupBy(List<V> all, Function<V, K> func, K defaultKey) {
+    public static <K, V> Multimap<K, V> split(List<V> all, Function<V, K> func, K defaultKey) {
         Multimap<K, V> out = ArrayListMultimap.create();
         all.forEach(l -> {
             K key = func.apply(l);
             out.put((key == null && !(defaultKey == null)) ? defaultKey : key, l);
         });
         return out;
-    }
-
-    public static <I, K, V> void mapping(Collection<I> input, Function<I, Pair<K, V>> func, Map<K, V> map) {
-        input.stream().map(func).forEach(pair -> map.put(pair.key, pair.value));
-    }
-
-    @Data
-    public static class Pair<K, V> {
-
-        private final K key;
-        private final V value;
     }
 
 }

@@ -1,6 +1,11 @@
 package com.mengcraft.util;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static com.mengcraft.util.Tuple.tuple;
 
 /**
  * Created by on 12月7日.
@@ -24,6 +29,15 @@ public class Helper {
 
     public static boolean nil(Object any) {
         return any == null;
+    }
+
+    public static <K, V, KK, VV> Map<KK, VV> map(Map<K, V> input, Function<Tuple<K, V>, Tuple<KK, VV>> function) {
+        Map<KK, VV> container = new HashMap<>();
+        input.forEach((k, v) -> {
+            Tuple<KK, VV> tuple = function.apply(tuple(k, v));
+            container.put(tuple.left(), tuple.right());
+        });
+        return container;
     }
 
 }
