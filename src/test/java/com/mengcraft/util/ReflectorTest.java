@@ -2,11 +2,14 @@ package com.mengcraft.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static com.mengcraft.util.Tuple.tuple;
+import static org.junit.Assert.assertEquals;
 
 public class ReflectorTest {
 
     public static class Foo {
+
+        private int i;
 
         public String bar() {
             return "foobar";
@@ -14,6 +17,17 @@ public class ReflectorTest {
 
         public static String foo() {
             return "foobar";
+        }
+
+        public Foo() {
+        }
+
+        public Foo(int i) {
+            this.i = i;
+        }
+
+        public int getI() {
+            return i;
         }
     }
 
@@ -41,6 +55,7 @@ public class ReflectorTest {
 
     @Test
     public void object() {
+        assertEquals(Reflector.object(Foo.class, tuple(int.class, 123)).getI(), 123);
     }
 
     @Test
