@@ -1,4 +1,4 @@
-package com.mengcraft.util;
+package com.mengcraft.util.registry;
 
 import java.util.HashMap;
 import java.util.Map;
