@@ -15,7 +15,7 @@ public class HTTPTest {
         Future<Integer> bai = HTTP.open(request);
 
         HTTPRequest icon = HTTPRequest.build("http://setting.smartisan.com/app/icon", HTTPRequest.Method.POST)
-                .setContentType(HTTPHeader.ContentType.JSON)
+                .setContentType(HTTPHeader.CONTENT_TYPE_JSON)
                 .setMessageContent("[{\"package\":\"com.sina.weibo\"}]");
 
         HTTP.open(icon, (e, response) -> {

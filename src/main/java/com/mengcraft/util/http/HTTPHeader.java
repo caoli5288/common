@@ -8,23 +8,6 @@ import java.util.Map;
  */
 public class HTTPHeader extends HashMap<String, String> {
 
-    public enum ContentType {
-
-        JSON("application/json"),
-        TEXT("text/html");
-
-        private final String type;
-
-        ContentType(String type) {
-            this.type = type;
-        }
-
-        @Override
-        public String toString() {
-            return type;
-        }
-    }
-
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder();
@@ -44,7 +27,7 @@ public class HTTPHeader extends HashMap<String, String> {
     HTTPHeader() {
         super();
         put(USER_AGENT, "Mozilla/5.0 I5MC");
-        put(CONTENT_TYPE, ContentType.TEXT.toString());
+        put(CONTENT_TYPE, CONTENT_TYPE_TEXT);
     }
 
     HTTPHeader(Map<String, String> handle) {
@@ -59,4 +42,6 @@ public class HTTPHeader extends HashMap<String, String> {
     public static final String COOKIE = "Cookie";
     public static final String CONTENT_TYPE = "Content-Type";
     public static final String USER_AGENT = "User-Agent";
+    public static final String CONTENT_TYPE_JSON = "application/json";
+    public static final String CONTENT_TYPE_TEXT = "text/html";
 }

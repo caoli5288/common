@@ -53,12 +53,12 @@ public class HTTPRequest {
         return this;
     }
 
-    public HTTPRequest setContentType(HTTPHeader.ContentType type) {
+    public HTTPRequest setContentType(String type) {
         HTTP.thr(HTTP.nil(type), "null");
         return setHeader(HTTPHeader.CONTENT_TYPE, type);
     }
 
-    public HTTPRequest setAccept(HTTPHeader.ContentType type) {
+    public HTTPRequest setAccept(String type) {
         HTTP.thr(HTTP.nil(type), "null");
         return setHeader(HTTPHeader.ACCEPT, type);
     }
