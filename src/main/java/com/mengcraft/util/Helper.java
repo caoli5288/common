@@ -1,7 +1,9 @@
 package com.mengcraft.util;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -22,9 +24,17 @@ public class Helper {
 
     public static void range(int begin, int len, Consumer<Integer> consumer) {
         int max = begin + len;
-        for (int i = begin; i < max; ) {
-            consumer.accept(i++);
+        for (int i = begin; i < max; i++) {
+            consumer.accept(i);
         }
+    }
+
+    public static <E> String join(Collection<E> input, Function<E, String> function, String delimiter) {
+        StringJoiner joiner = new StringJoiner(delimiter);
+        for (E ele : input) {
+            joiner.add(function.apply(ele));
+        }
+        return joiner.toString();
     }
 
     public static boolean nil(Object any) {

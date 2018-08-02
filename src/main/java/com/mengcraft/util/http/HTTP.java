@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
@@ -61,19 +62,31 @@ public final class HTTP {
         });
     }
 
-    public static void open(@NonNull HTTPRequest request, @NonNull Callback back) {
-        thr(nil(request) || nil(back), "open " + request + " " + back);
+    public static Future<Integer> open(@NonNull HTTPRequest request, boolean async) {
+        if (async) {
+            return open(request);
+        }
+        return CompletableFuture.completedFuture(new HTTPCall(request, null).call());
+    }
+
+    public static void open(@NonNull HTTPRequest request, @NonNull Callback callback) {
         LATCH.incrementAndGet();
         runAsync(() -> {
-            val task = new HTTPCall(request, back);
+            val task = new HTTPCall(request, callback);
             try {
                 task.call();
-            } catch (Exception e) {
-                back.call(e, null);
             } finally {
                 LATCH.decrementAndNotify();
             }
         });
+    }
+
+    public static void open(@NonNull HTTPRequest request, @NonNull Callback callback, boolean async) {
+        if (async) {
+            open(request, callback);
+            return;
+        }
+        new HTTPCall(request, callback).call();
     }
 
     public interface Callback {
