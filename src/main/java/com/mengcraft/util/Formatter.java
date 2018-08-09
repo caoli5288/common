@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  */
 public class Formatter {
 
-    private static final Pattern PATTERN = Pattern.compile("\\$\\{(?<lab>[A-Za-z_]\\w*)\\}");
+    private static final Pattern PATTERN = Pattern.compile("\\$\\{(?<lab>[^${}]+)\\}");
 
     @Setter(AccessLevel.PACKAGE)
     private static boolean replacePlaceholder;
