@@ -11,15 +11,35 @@ public class RingBuf<T> {
     private int next;
     private int first;
 
+    /**
+     * @param power capacity = 1 << power
+     */
     public RingBuf(int power) {
         capacity = 1 << power;
         mod = capacity - 1;
         buf = new Object[capacity];
     }
 
+    RingBuf(int power, int start) {// Test only
+        this(power);
+        first = next = start;
+    }
+
     public int add(T add) throws IndexOutOfBoundsException {
+        return add(add, false);
+    }
+
+    /**
+     * @return sequence id of added element
+     * @throws IndexOutOfBoundsException if buf is full and overwrite flag false
+     */
+    public int add(T add, boolean overwrite) {
         if (isFull()) {
-            throw new IndexOutOfBoundsException("add");
+            if (overwrite) {
+                first++;
+            } else {
+                throw new IndexOutOfBoundsException("full buf");
+            }
         }
         int ret = next++;
         buf[ret & mod] = add;
@@ -41,72 +61,109 @@ public class RingBuf<T> {
         return max - min;
     }
 
+    private static int mod(int value, int mod) {
+        return value + mod;
+    }
+
     public int capacity() {
         return capacity;
     }
 
-    public T head() throws IndexOutOfBoundsException {
+    /**
+     * @return the head, or null if buf is empty
+     */
+    public T head() {
         if (isEmpty()) {
-            throw new IndexOutOfBoundsException("head");
+            return null;
         }
-        return get(first);
+        return _look(first);
     }
 
-    public T get(int get) throws IndexOutOfBoundsException {
-        if (!contains(get)) {
-            throw new IndexOutOfBoundsException("get");
+    /**
+     * @return element with given sequence id
+     * @throws IndexOutOfBoundsException if sequence id out of buf
+     */
+    public T get(int id) throws IndexOutOfBoundsException {
+        if (!contains(id)) {
+            throw new IndexOutOfBoundsException(String.format("get=%s,buf_first=%s,buf_next=%s", id, first, next));
         }
-        return (T) buf[get & mod];
+        return _look(id);
     }
 
+    public T _look(int id) {
+        return (T) buf[id & mod];
+    }
+
+    /**
+     * @return the tail, or null if buf is empty
+     */
     public T tail() {
         if (isEmpty()) {
-            throw new IndexOutOfBoundsException("tail");
+            return null;
         }
-        return get(next - 1);
+        return _look(mod(next, -1));
     }
 
+    /**
+     * @return the removed first element
+     * @throws NoSuchElementException is buf is empty
+     */
     public T remove() throws NoSuchElementException {
         if (isEmpty()) {
             throw new NoSuchElementException("remove");
         }
-        return (T) buf[first++ & mod];
+        T out = _look(first);
+        first++;
+        return out;
+    }
+
+    /**
+     * @return true if first index shift to right
+     */
+    public boolean shift() {
+        if (isEmpty()) {
+            return false;
+        }
+        first++;
+        return true;
     }
 
     public boolean isEmpty() {
-        return length() == 0;
+        return first == next;
     }
 
     public void walk(IWalker<T> walker) {
+        if (isEmpty()) {
+            return;
+        }
         _walk(first, next, walker);
     }
 
     private void _walk(int start, int bound, IWalker<T> walker) {
-        for (int _i = start; _i < bound; _i++) {
-            walker.walk(_i, (T) buf[_i & mod]);
+        for (int i = start; delta(i, bound) >= 1; i++) {
+            walker.walk(i, _look(i));
         }
     }
 
     public void walk(int start, IWalker<T> walker) throws IndexOutOfBoundsException {
-        if (!contains(start)) {
-            throw new IndexOutOfBoundsException("get start");
-        }
-        _walk(start, next, walker);
+        walk(start, next, walker);
     }
 
     public boolean contains(int id) {
-        int delta = delta(id, next);
-        return delta > 0 && delta <= length();
+        if (isEmpty()) {
+            return false;
+        }
+        return delta(first, id) > -1 && delta(id, next) >= 1;
     }
 
-    public void walk(int start, int end, IWalker<T> walker) throws IndexOutOfBoundsException {
-        if (!contains(start)) {
-            throw new IndexOutOfBoundsException("get start");
+    public void walk(int start, int bound, IWalker<T> walker) throws IndexOutOfBoundsException {
+        if (delta(first, start) <= -1 || delta(bound, next) <= -1) {
+            throw new IndexOutOfBoundsException(String.format("start=%s,bound=%s,buf_first=%s,buf_bound=%s", start, bound, first, next));
         }
-        if (end < start || !contains(end - 1)) {
-            throw new IndexOutOfBoundsException("get len");
+        if (delta(start, bound) <= -1) {
+            throw new IndexOutOfBoundsException(String.format("start=%s,bound=%s", start, bound));
         }
-        _walk(start, end, walker);
+        _walk(start, bound, walker);
     }
 
     public int next() {
