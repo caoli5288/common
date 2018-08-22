@@ -83,7 +83,7 @@ public class RingBuf<T> {
 
     private void _walk(int start, int bound, IWalker<T> walker) {
         for (int _i = start; _i < bound; _i++) {
-            walker.walk((T) buf[_i & mod]);
+            walker.walk(_i, (T) buf[_i & mod]);
         }
     }
 
@@ -99,15 +99,14 @@ public class RingBuf<T> {
         return delta > 0 && delta <= length();
     }
 
-    public void walk(int start, int len, IWalker<T> walker) throws IndexOutOfBoundsException {
+    public void walk(int start, int end, IWalker<T> walker) throws IndexOutOfBoundsException {
         if (!contains(start)) {
             throw new IndexOutOfBoundsException("get start");
         }
-        int bound = start + len;
-        if (!contains(bound - 1)) {
+        if (end < start || !contains(end - 1)) {
             throw new IndexOutOfBoundsException("get len");
         }
-        _walk(start, bound, walker);
+        _walk(start, end, walker);
     }
 
     public int next() {
@@ -133,6 +132,6 @@ public class RingBuf<T> {
 
     public interface IWalker<T> {
 
-        void walk(T ele);
+        void walk(int id, T ele);
     }
 }
