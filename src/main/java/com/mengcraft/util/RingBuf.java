@@ -1,9 +1,10 @@
 package com.mengcraft.util;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class RingBuf<T> {
+public class RingBuf<T> implements Iterable<T> {
 
     private final Object[] buf;
     private final int capacity;
@@ -132,23 +133,6 @@ public class RingBuf<T> {
         return first == next;
     }
 
-    public void walk(IWalker<T> walker) {
-        if (isEmpty()) {
-            return;
-        }
-        _walk(first, next, walker);
-    }
-
-    private void _walk(int start, int bound, IWalker<T> walker) {
-        for (int i = start; delta(i, bound) >= 1; i++) {
-            walker.walk(i, _look(i));
-        }
-    }
-
-    public void walk(int start, IWalker<T> walker) throws IndexOutOfBoundsException {
-        walk(start, next, walker);
-    }
-
     public boolean contains(int id) {
         if (isEmpty()) {
             return false;
@@ -156,14 +140,23 @@ public class RingBuf<T> {
         return delta(first, id) > -1 && delta(id, next) >= 1;
     }
 
-    public void walk(int start, int bound, IWalker<T> walker) throws IndexOutOfBoundsException {
-        if (delta(first, start) <= -1 || delta(bound, next) <= -1) {
-            throw new IndexOutOfBoundsException(String.format("start=%s,bound=%s,buf_first=%s,buf_bound=%s", start, bound, first, next));
+    @Override
+    public Range<T> iterator() {
+        return new Range<>(this, first, next);
+    }
+
+    public Range<T> iterator(int begin) {
+        return iterator(begin, next);
+    }
+
+    public Range<T> iterator(int begin, int bound) {
+        if (delta(first, begin) <= -1 || delta(bound, next) <= -1) {
+            throw new IndexOutOfBoundsException(String.format("begin=%s,bound=%s,buf_first=%s,buf_bound=%s", begin, bound, first, next));
         }
-        if (delta(start, bound) <= -1) {
-            throw new IndexOutOfBoundsException(String.format("start=%s,bound=%s", start, bound));
+        if (delta(begin, bound) <= -1) {
+            throw new IndexOutOfBoundsException(String.format("begin=%s,bound=%s", begin, bound));
         }
-        _walk(start, bound, walker);
+        return new Range<>(this, begin, bound);
     }
 
     public int next() {
@@ -187,8 +180,41 @@ public class RingBuf<T> {
         return capacity - length();
     }
 
-    public interface IWalker<T> {
+    public static class Range<T> implements Iterator<T>, Iterable<T> {
 
-        void walk(int id, T ele);
+        private final RingBuf<T> _buf;
+        private final int bound;
+
+        private int id;
+        private int inext;
+
+        private Range(RingBuf<T> buf, int begin, int bound) {
+            _buf = buf;
+            this.bound = bound;
+            inext = begin;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delta(inext, bound) >= 1;
+        }
+
+        @Override
+        public T next() {
+            id = inext;
+            inext = mod(inext, 1);
+            return _buf._look(id);
+        }
+
+        public int id() {
+            return id;
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return this;
+        }
+
     }
+
 }
