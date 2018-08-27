@@ -11,6 +11,7 @@ public class RingBuf<T> implements Iterable<T> {
     private final int mod;
     private int next;
     private int first;
+    private int length;
 
     /**
      * @param power capacity = 1 << power
@@ -27,23 +28,12 @@ public class RingBuf<T> implements Iterable<T> {
     }
 
     public int add(T add) throws IndexOutOfBoundsException {
-        return add(add, false);
-    }
-
-    /**
-     * @return sequence id of added element
-     * @throws IndexOutOfBoundsException if buf is full and overwrite flag false
-     */
-    public int add(T add, boolean overwrite) {
         if (isFull()) {
-            if (overwrite) {
-                first++;
-            } else {
-                throw new IndexOutOfBoundsException("full buf");
-            }
+            throw new IndexOutOfBoundsException("full buf");
         }
         int ret = next++;
         buf[ret & mod] = add;
+        length++;
         return ret;
     }
 
@@ -52,7 +42,7 @@ public class RingBuf<T> implements Iterable<T> {
     }
 
     public int length() {
-        return delta(first, next);
+        return length;
     }
 
     /**
@@ -113,8 +103,8 @@ public class RingBuf<T> implements Iterable<T> {
         if (isEmpty()) {
             throw new NoSuchElementException("remove");
         }
-        T out = _look(first);
-        first++;
+        T out = _look(first++);
+        length--;
         return out;
     }
 
@@ -125,12 +115,13 @@ public class RingBuf<T> implements Iterable<T> {
         if (isEmpty()) {
             return false;
         }
+        length--;
         first++;
         return true;
     }
 
     public boolean isEmpty() {
-        return first == next;
+        return length == 0;
     }
 
     public boolean contains(int id) {
@@ -173,7 +164,7 @@ public class RingBuf<T> implements Iterable<T> {
     }
 
     public void reset() {
-        next = first = 0;
+        next = first = length = 0;
     }
 
     public int remaining() {
