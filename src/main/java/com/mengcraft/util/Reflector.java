@@ -98,6 +98,12 @@ public enum Reflector {
     }
 
     @SneakyThrows
+    public static <T> T getField(Class<?> clz, Object obj, String field) {
+        val i = getFieldRef(clz, field);
+        return (T) i.get(obj);
+    }
+
+    @SneakyThrows
     public static void setField(Object any, String field, Object what) {
         val i = getFieldRef(any.getClass(), field);
         i.set(any, what);
