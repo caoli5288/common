@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -38,6 +37,14 @@ public class BeanBuf<T> {
         for (BeanDescriptor descriptor : descriptors) {
             cache.asMap().remove(descriptor.cacheKey(obj), obj);
         }
+    }
+
+    public T get(BeanDescription description) {
+        return cache.asMap().get(description.cacheKey());
+    }
+
+    public boolean containsKey(BeanDescription description) {
+        return cache.asMap().containsKey(description.cacheKey());
     }
 
     public T get(BeanDescription description, Supplier<T> supplier) {
