@@ -7,6 +7,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
@@ -17,6 +18,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 /**
@@ -135,6 +137,17 @@ public class PluginHelper {
 
     public static void updateYmlVersion(JavaPlugin plugin, int version) {
         updateYmlVersion(plugin, "config_version", version);
+    }
+
+    @SneakyThrows
+    public static void unregisterCommands(Plugin plugin) {
+        Field commandMapField = SimplePluginManager.class.getDeclaredField("commandMap");
+        commandMapField.setAccessible(true);
+        SimpleCommandMap commandMap = (SimpleCommandMap) commandMapField.get(Bukkit.getPluginManager());
+        Field knownCommandsField = SimpleCommandMap.class.getDeclaredField("knownCommands");
+        knownCommandsField.setAccessible(true);
+        Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+        knownCommands.values().removeIf(command -> command instanceof PluginCommand && ((PluginCommand) command).getPlugin().getName().equals(plugin.getName()));
     }
 
 }
