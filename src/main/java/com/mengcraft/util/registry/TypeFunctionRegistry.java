@@ -5,15 +5,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-public class FunctionTypeRegistry<R> {
+public class TypeFunctionRegistry<R> {
 
     private final Map<Class<?>, Function<Object, R>> all;
 
-    public FunctionTypeRegistry() {
+    public TypeFunctionRegistry() {
         this(new HashMap<>());
     }
 
-    public FunctionTypeRegistry(Map<Class<?>, Function<Object, R>> all) {
+    public TypeFunctionRegistry(Map<Class<?>, Function<Object, R>> all) {
         this.all = all;
     }
 
@@ -22,7 +22,7 @@ public class FunctionTypeRegistry<R> {
         all.put(key, (Function<Object, R>) function);
     }
 
-    public <T> R handle(T input) {
+    public R handle(Object input) {
         Class<?> clz = input.getClass();
         if (all.containsKey(clz)) {
             return all.get(clz).apply(input);

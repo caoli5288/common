@@ -17,11 +17,12 @@ public class TypeRegistry {
         this.all = all;
     }
 
-    public <T> void register(Class<T> key, Consumer<Object> function) {
-        all.put(key, function);
+    @SuppressWarnings("unchecked")
+    public <T> void register(Class<T> key, Consumer<T> function) {
+        all.put(key, (Consumer<Object>) function);
     }
 
-    public <T> void handle(T input) {
+    public void handle(Object input) {
         Class<?> clz = input.getClass();
         if (all.containsKey(clz)) {
             all.get(clz).accept(input);
