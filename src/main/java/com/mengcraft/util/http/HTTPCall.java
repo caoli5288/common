@@ -1,6 +1,5 @@
 package com.mengcraft.util.http;
 
-import com.mengcraft.util.Latch;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;

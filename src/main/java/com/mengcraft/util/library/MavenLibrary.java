@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.mengcraft.util.Hex;
-import com.mengcraft.util.MessageDigestLocal;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -138,7 +137,7 @@ public class MavenLibrary extends Library {
             val md5 = new File(file.getParentFile(), file.getName() + ".md5");
             if (md5.isFile()) {
                 byte[] buf = Files.readAllBytes(file.toPath());
-                MessageDigest d = MessageDigestLocal.algorithm("md5");
+                MessageDigest d = MessageDigest.getInstance("md5");
                 String result = Hex.hex(d.digest(buf));
                 String l = Files.newBufferedReader(md5.toPath()).readLine();
                 return l.indexOf(' ') == -1 ? l.equals(result) : Iterators.forArray(l.split(" ")).next().equals(result);

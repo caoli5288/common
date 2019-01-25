@@ -1,7 +1,11 @@
 package com.mengcraft.util.http;
 
-import com.mengcraft.util.Latch;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.val;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,6 +14,7 @@ import java.io.Reader;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
@@ -19,7 +24,7 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
  */
 public final class HTTP {
 
-    static final String SEPARATOR = System.getProperty("line.separator");
+    private final static AtomicInteger FLUSHING = new AtomicInteger();
 
     private HTTP() {// utility class
         throw new IllegalStateException("utility class");
@@ -33,32 +38,10 @@ public final class HTTP {
         return i == null;
     }
 
-    private static final Latch LATCH = new Latch();
-
-    /**
-     * Blocking until pool flushed.
-     *
-     * @param time wait time
-     * @return {@code true} if pool flushed without wait timeout
-     * @throws InterruptedException thrown if interrupted
-     */
-    public static void flush(long time) throws InterruptedException {
-        LATCH.hold(time);
-    }
-
-    public static void flush() throws InterruptedException {
-        flush(Long.MAX_VALUE);
-    }
-
     public static Future<Integer> open(@NonNull HTTPRequest request) {
-        LATCH.incrementAndGet();
         return supplyAsync(() -> {
             val task = new HTTPCall(request, null);
-            try {
-                return task.call();
-            } finally {
-                LATCH.decrementAndNotify();
-            }
+            return task.call();
         });
     }
 
@@ -70,14 +53,9 @@ public final class HTTP {
     }
 
     public static void open(@NonNull HTTPRequest request, @NonNull Callback callback) {
-        LATCH.incrementAndGet();
         runAsync(() -> {
             val task = new HTTPCall(request, callback);
-            try {
-                task.call();
-            } finally {
-                LATCH.decrementAndNotify();
-            }
+            task.call();
         });
     }
 

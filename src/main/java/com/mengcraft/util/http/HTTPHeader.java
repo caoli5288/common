@@ -12,7 +12,7 @@ public class HTTPHeader extends HashMap<String, String> {
     public String toString() {
         StringBuilder b = new StringBuilder();
         for (Entry<String, String> e : entrySet()) {
-            if (b.length() > 0) b.append(HTTP.SEPARATOR);
+            if (b.length() > 0) b.append(System.getProperty("line.separator"));
             b.append(e.getKey());
             b.append(": ");
             b.append(e.getValue());

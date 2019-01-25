@@ -4,16 +4,26 @@ import lombok.SneakyThrows;
 import lombok.val;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import static com.mengcraft.util.Reflector.invoke;
 
 /**
  * Created on 15-12-13.
  */
 public class LibraryLoader {
+
+    private static final Method ADD_URL = _INIT_ADD_URL();
+
+    @SneakyThrows
+    private static Method _INIT_ADD_URL() {
+        Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+        addURL.setAccessible(true);
+        return addURL;
+    }
 
     @SneakyThrows
     public static void load(JavaPlugin plugin, Library library) {
@@ -29,7 +39,7 @@ public class LibraryLoader {
             }
 
             val lib = library.getFile();
-            invoke(plugin.getClass().getClassLoader(), "addURL", lib.toURI().toURL());
+            ADD_URL.invoke(plugin.getClass().getClassLoader(), lib.toURI().toURL());
 
             plugin.getLogger().info("Load library " + lib + " done");
         }
