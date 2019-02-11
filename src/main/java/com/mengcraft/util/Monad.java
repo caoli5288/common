@@ -4,9 +4,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class Monad<T> {
+public class Monad<T> implements Supplier<T> {
 
     private final static Monad NIL = new Monad<>(null);
     private final T obj;
@@ -30,9 +31,14 @@ public class Monad<T> {
         return obj == null;
     }
 
+    @Override
+    public T get() {
+        return getObj();
+    }
+
     public static <T> Monad<T> obj(T obj) {
         if (obj == null) {
-            return Monad.NIL;
+            return NIL;
         }
         return new Monad<>(obj);
     }
