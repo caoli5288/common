@@ -1,5 +1,7 @@
 package com.mengcraft.util;
 
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.bukkit.ChatColor;
@@ -8,6 +10,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.StringJoiner;
@@ -20,9 +23,22 @@ public class Messenger {
     private final File ymlFile;
     private final YamlConfiguration yml;
 
-    public Messenger(Plugin plugin) {
+    private Messenger(Plugin plugin) {
         ymlFile = new File(plugin.getDataFolder(), "message.yml");
         yml = YamlConfiguration.loadConfiguration(ymlFile);
+    }
+
+    @SneakyThrows
+    public static Messenger get(Plugin plugin) {
+        Messenger messenger = new Messenger(plugin);
+        if (!messenger.ymlFile.isFile()) {
+            InputStream resource = plugin.getResource("message.yml");
+            if (resource != null) {
+                Files.write(ByteStreams.toByteArray(resource), messenger.ymlFile);
+                resource.close();
+            }
+        }
+        return messenger;
     }
 
     @SneakyThrows
