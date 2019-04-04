@@ -16,6 +16,8 @@ import java.util.Arrays;
  */
 public class CommaSeparatedValuesReader extends InputStreamReader {
 
+    public static final int INIT_VALUES_LENGTH = 8;
+    private int maxValues = INIT_VALUES_LENGTH;
     private int lines;
 
     public CommaSeparatedValuesReader(InputStream stream) {
@@ -82,7 +84,7 @@ public class CommaSeparatedValuesReader extends InputStreamReader {
 
     private class Values {
 
-        private String[] buf = new String[8];
+        private String[] buf = new String[maxValues];
         private int length;
         private StringBuilder value = new StringBuilder();
         private int quota;
@@ -107,8 +109,10 @@ public class CommaSeparatedValuesReader extends InputStreamReader {
 
         String[] endValues() {
             endValue();
-            buf = Arrays.copyOf(buf, length);
-            return buf;
+            if (maxValues < length) {
+                maxValues = length;
+            }
+            return Arrays.copyOf(buf, length);
         }
 
         void appendQuota() throws IOException {
@@ -119,7 +123,7 @@ public class CommaSeparatedValuesReader extends InputStreamReader {
                 quota = 1;
             } else if (quota == 1) {
                 quota = 2;
-            } else if (quota == 2) {
+            } else {// When quota == 2.
                 quota = 1;
                 value.append('"');
             }
