@@ -2,6 +2,7 @@ package com.mengcraft.util;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public abstract class Monad<T> {
 
@@ -9,11 +10,13 @@ public abstract class Monad<T> {
 
     public abstract <R> Monad<R> map(Function<T, R> function);
 
+    public abstract Monad<T> filter(Predicate<T> predicate);
+
     public static <T> Monad<T> maybe(T obj) {
         if (obj == null) {
             return Nothing.INSTANCE;
         }
-        return new Maybe<>(obj);
+        return new Just<>(obj);
     }
 
     public static class Nothing extends Monad {
@@ -32,13 +35,18 @@ public abstract class Monad<T> {
         public Monad map(Function function) {
             return this;
         }
+
+        @Override
+        public Monad filter(Predicate predicate) {
+            return this;
+        }
     }
 
-    public static class Maybe<T> extends Monad<T> {
+    public static class Just<T> extends Monad<T> {
 
         private final T obj;
 
-        private Maybe(T obj) {
+        private Just(T obj) {
             this.obj = obj;
         }
 
@@ -53,7 +61,12 @@ public abstract class Monad<T> {
             if (applied == null) {
                 return Nothing.INSTANCE;
             }
-            return new Maybe<>(applied);
+            return new Just<>(applied);
+        }
+
+        @Override
+        public Monad<T> filter(Predicate<T> predicate) {
+            return predicate.test(obj) ? this : Nothing.INSTANCE;
         }
     }
 }
