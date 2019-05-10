@@ -1,45 +1,59 @@
 package com.mengcraft.util;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class Monad<T> implements Supplier<T> {
+public abstract class Monad<T> {
 
-    private final static Monad NIL = new Monad<>(null);
-    private final T obj;
+    public abstract void then(Consumer<T> consumer);
 
-    public <R> Monad<R> get(Function<T, R> functor) {
-        return obj(getObj(functor));
-    }
+    public abstract <R> Monad<R> map(Function<T, R> function);
 
-    public <R> R getObj(Function<T, R> functor) {
-        if (isEmpty()) {
-            return null;
-        }
-        return functor.apply(obj);
-    }
-
-    public T getObj() {
-        return obj;
-    }
-
-    public boolean isEmpty() {
-        return obj == null;
-    }
-
-    @Override
-    public T get() {
-        return getObj();
-    }
-
-    public static <T> Monad<T> obj(T obj) {
+    public static <T> Monad<T> maybe(T obj) {
         if (obj == null) {
-            return NIL;
+            return Nothing.INSTANCE;
         }
-        return new Monad<>(obj);
+        return new Maybe<>(obj);
+    }
+
+    public static class Nothing extends Monad {
+
+        private static final Nothing INSTANCE = new Nothing();
+
+        private Nothing() {
+        }
+
+        @Override
+        public void then(Consumer consumer) {
+
+        }
+
+        @Override
+        public Monad map(Function function) {
+            return this;
+        }
+    }
+
+    public static class Maybe<T> extends Monad<T> {
+
+        private final T obj;
+
+        private Maybe(T obj) {
+            this.obj = obj;
+        }
+
+        @Override
+        public void then(Consumer<T> consumer) {
+            consumer.accept(obj);
+        }
+
+        @Override
+        public <R> Monad<R> map(Function<T, R> function) {
+            R applied = function.apply(obj);
+            if (applied == null) {
+                return Nothing.INSTANCE;
+            }
+            return new Maybe<>(applied);
+        }
     }
 }
