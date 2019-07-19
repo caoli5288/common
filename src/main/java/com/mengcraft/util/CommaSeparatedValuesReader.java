@@ -4,24 +4,30 @@ import com.google.common.base.Preconditions;
 import lombok.NonNull;
 import org.json.simple.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
  * https://tools.ietf.org/html/rfc4180
  */
-public class CommaSeparatedValuesReader extends InputStreamReader {
+public class CommaSeparatedValuesReader extends BufferedReader {
 
-    public static final int INIT_VALUES_LENGTH = 8;
+    private static final int INIT_VALUES_LENGTH = 8;
     private int maxValues = INIT_VALUES_LENGTH;
     private int lines;
 
     public CommaSeparatedValuesReader(InputStream stream) {
-        super(stream);
+        super(new InputStreamReader(stream));
+    }
+
+    public CommaSeparatedValuesReader(Reader in) {
+        super(in);
     }
 
     public CommaSeparatedValuesReader(String text) {
@@ -32,41 +38,50 @@ public class CommaSeparatedValuesReader extends InputStreamReader {
         Values values = new Values();
         for (; ; ) {
             int reads = read();
-            if (reads == -1) {
+            if (reads == -1 || reads(values, reads)) {
                 lines++;
                 return values.endValues();
             }
-            switch (reads) {
-                case '\r':
-                    /*
-                     * We simply ignore it.
-                     */
-                    break;
-                case '\n':
-                    if (values.quota != 1) {
-                        lines++;
-                        return values.endValues();
-                    }
-                    values.append('\n');
-                    break;
-                case '"':
-                    values.appendQuota();
-                    break;
-                case ',':
-                    if (values.quota == 1) {
-                        values.append(',');
-                    } else {
-                        values.newValue();
-                    }
-                    break;
-                default:
-                    if (values.quota == 2) {
-                        throw new IOException(String.format("Exception occurred after reads %s line.", lines));
-                    }
-                    values.append((char) reads);
-                    break;
-            }
         }
+    }
+
+    /**
+     * @param values
+     * @param reads
+     * @return {@code true} only if values end
+     */
+    private boolean reads(Values values, int reads) throws IOException {
+        switch (reads) {
+            case '\r':
+                /*
+                 * We simply ignore it.
+                 */
+                break;
+            case '\n':
+                if (values.quota != 1) {
+                    lines++;
+                    return true;
+                }
+                values.append('\n');
+                break;
+            case '"':
+                values.appendQuota();
+                break;
+            case ',':
+                if (values.quota == 1) {
+                    values.append(',');
+                } else {
+                    values.newValue();
+                }
+                break;
+            default:
+                if (values.quota == 2) {
+                    throw new IOException(String.format("Exception occurred after reads %s line.", lines));
+                }
+                values.append((char) reads);
+                break;
+        }
+        return false;
     }
 
     public JSONObject readSeparatedValues(@NonNull String[] keys) throws IOException {
