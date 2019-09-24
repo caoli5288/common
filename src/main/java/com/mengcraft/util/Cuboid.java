@@ -2,6 +2,7 @@ package com.mengcraft.util;
 
 import com.google.common.collect.ImmutableSet;
 import lombok.Data;
+import org.bukkit.util.Vector;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -12,7 +13,7 @@ public class Cuboid implements Iterable<Coord> {
     private final Coord least;
     private final Coord most;
 
-    public Cuboid(Coord least, Coord most) {
+    private Cuboid(Coord least, Coord most) {
         this.least = Coord.valueOf(Math.min(least.getX(), most.getX()), Math.min(least.getY(), most.getY()), Math.min(least.getZ(), most.getZ()));
         this.most = Coord.valueOf(Math.max(least.getX(), most.getX()), Math.max(least.getY(), most.getY()), Math.max(least.getZ(), most.getZ()));
     }
@@ -54,6 +55,10 @@ public class Cuboid implements Iterable<Coord> {
         );
     }
 
+    public Vector vector() {
+        return new Vector(most.getX() - least.getX(), most.getY() - least.getY(), most.getZ() - least.getZ());
+    }
+
     @Override
     public Iterator<Coord> iterator() {
         return ListComprehension.of(least, coord -> {
@@ -70,7 +75,7 @@ public class Cuboid implements Iterable<Coord> {
         });
     }
 
-    public static Cuboid valueOf(Coord most, Coord least) {
-        return new Cuboid(most, least);
+    public static Cuboid valueOf(Coord least, Coord most) {
+        return new Cuboid(least, most);
     }
 }

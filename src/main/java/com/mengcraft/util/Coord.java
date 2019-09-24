@@ -11,6 +11,12 @@ public class Coord {
     private final int y;
     private final int z;
 
+    private Coord(int x, int y, int z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
     public Coord withX(int x) {
         return new Coord(x, y, z);
     }
