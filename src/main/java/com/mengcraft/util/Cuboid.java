@@ -18,9 +18,20 @@ public class Cuboid implements Iterable<Coord> {
         this.most = Coord.valueOf(Math.max(least.getX(), most.getX()), Math.max(least.getY(), most.getY()), Math.max(least.getZ(), most.getZ()));
     }
 
-    public Collection<Cuboid> edges() {
+    public Collection<Cuboid> getLayers() {
+        return ImmutableSet.of(
+                valueOf(least, most.withX(least.getX())),
+                valueOf(least, most.withY(least.getY())),
+                valueOf(least, most.withZ(least.getZ())),
+                valueOf(most, least.withX(most.getX())),
+                valueOf(most, least.withY(most.getY())),
+                valueOf(most, least.withZ(most.getZ()))
+        );
+    }
+
+    public Collection<Cuboid> getEdges() {
         ImmutableSet.Builder<Cuboid> b = ImmutableSet.builder();
-        for (Coord coord : endpoints()) {
+        for (Coord coord : getEndpoints()) {
             if (coord.getX() != least.getX()) {
                 b.add(valueOf(coord, Coord.valueOf(least.getX(), coord.getY(), coord.getZ())));
             }
@@ -43,7 +54,7 @@ public class Cuboid implements Iterable<Coord> {
         return b.build();
     }
 
-    public Collection<Coord> endpoints() {
+    public Collection<Coord> getEndpoints() {
         return ImmutableSet.of(most,
                 most.withX(least.getX()),
                 most.withY(least.getY()),
@@ -53,10 +64,6 @@ public class Cuboid implements Iterable<Coord> {
                 least.withY(most.getY()),
                 least.withZ(most.getZ())
         );
-    }
-
-    public Vector vector() {
-        return new Vector(most.getX() - least.getX(), most.getY() - least.getY(), most.getZ() - least.getZ());
     }
 
     @Override
@@ -73,6 +80,17 @@ public class Cuboid implements Iterable<Coord> {
             }
             return null;
         });
+    }
+
+    public int getVolume() {
+        int x = most.getX() - least.getX() + 1;
+        int y = most.getY() - least.getY() + 1;
+        int z = most.getZ() - least.getZ() + 1;
+        return x * y * z;
+    }
+
+    public Vector toVector() {
+        return new Vector(most.getX() - least.getX(), most.getY() - least.getY(), most.getZ() - least.getZ());
     }
 
     public static Cuboid valueOf(Coord least, Coord most) {
