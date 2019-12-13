@@ -6,97 +6,122 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 public class Types {
 
-    public static final Map<Class<?>, MethodsDesc> METHODS_DESCRIPTORS = new HashMap<>();
+    private static final Map<Class<?>, Methods> METHODS_DESCRIPTORS = new HashMap<>();
 
+    @SuppressWarnings("unchecked")
     public static <T> T asType(Object obj, Class<T> cls) {
         obj = unpack(obj);
-        MethodsDesc desc = ofMethodsDesc(obj);
-        return cls.cast(Proxy.newProxyInstance(cls.getClassLoader(), new Class<?>[]{cls}, new Invoker(desc, obj)));
+        return (T) Proxy.newProxyInstance(cls.getClassLoader(), new Class<?>[]{cls}, new Invoker(getMethods(obj), obj));
     }
 
     private static Object unpack(Object obj) {
         if (Proxy.isProxyClass(obj.getClass())) {
             InvocationHandler handler = Proxy.getInvocationHandler(obj);
-            validate(handler instanceof Invoker, "cannot apply to unknown proxy instance");
+            checkState(handler instanceof Invoker, "cannot apply to unknown proxy instance");
             return ((Invoker) handler).obj;
         }
         return obj;
     }
 
-    public static MethodsDesc ofMethodsDesc(Object obj) {
+    public static Methods getMethods(Object obj) {
         obj = unpack(obj);
-        return METHODS_DESCRIPTORS.computeIfAbsent(obj.getClass(), cls -> new MethodsDesc(cls));
+        Methods desc = METHODS_DESCRIPTORS.get(obj.getClass());
+        if (desc == null) {
+            desc = new Methods(obj.getClass());
+            METHODS_DESCRIPTORS.put(desc.objCls, desc);
+        }
+        return desc;
     }
 
-    private static void validate(boolean b, String msg) {
-        if (!b) throw new IllegalStateException(msg);
+    private static Method lookup(Class<?> cls, String methodName, Class<?>... paramsTypes) {
+        try {
+            return cls.getDeclaredMethod(methodName, paramsTypes);
+        } catch (Exception e) {
+            for (Method method : cls.getDeclaredMethods()) {
+                if (method.getName().equals(methodName) && method.getParameterCount() == paramsTypes.length && matches(method.getParameterTypes(), paramsTypes)) {
+                    return method;
+                }
+            }
+            return null;
+        }
+    }
+
+    private static boolean matches(Class<?>[] parameterTypes, Class<?>[] paramsTypes) {
+        for (int i = 0; i < parameterTypes.length; i++) {
+            Class<?> paramType = paramsTypes[i];
+            if (paramType != Object.class && !parameterTypes[i].isAssignableFrom(paramType)) {// guess (paramType == Object) always generic parameter
+                return false;
+            }
+        }
+        return true;
     }
 
     private static class Invoker implements InvocationHandler {
 
-        private final MethodsDesc desc;
+        private final Methods desc;
         private final Object obj;
 
-        Invoker(MethodsDesc desc, Object obj) {
+        Invoker(Methods desc, Object obj) {
             this.desc = desc;
             this.obj = obj;
         }
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] params) throws Exception {
-            Method mapped = desc.mappings.get(method);
-            if (mapped == null) {
-                mapped = desc.objCls.getMethod(method.getName(), method.getParameterTypes());
-                desc.mapStrict(mapped, method);
+            Method res = desc.mappings.get(method);
+            if (res == null) {
+                res = lookup(desc.objCls, method.getName(), method.getParameterTypes());
+                checkNotNull(res, String.format("%s: [%s] not mapped", desc.objCls, method));
+                desc.mapStrict(res, method);
             }
-            return mapped.invoke(obj, params);
+            return res.invoke(obj, params);
         }
     }
 
-    public static class MethodsDesc {
+    public static class Methods {
 
         private final Class<?> objCls;
         private final Map<Method, Method> mappings = new HashMap<>();
 
-        MethodsDesc(Class<?> objCls) {
+        Methods(Class<?> objCls) {
             this.objCls = objCls;
         }
 
-        public void map(String from, Class<?> cls, String to) throws NoSuchMethodException {
-            validate(cls.isInterface(), String.format("cls %s not interface", cls.getName()));
+        public Methods map(String from, Class<?> cls, String to) {
+            checkState(cls.isInterface(), String.format("class %s is not an interface", cls.getName()));
             for (Method method : cls.getMethods()) {
                 if (method.getName().equals(to)) {
-                    try {
-                        Method mapped = objCls.getDeclaredMethod(from, method.getParameterTypes());
-                        mapStrict(mapped, method);
-                        return;
-                    } catch (Exception ignore) {
+                    Method res = lookup(objCls, from, method.getParameterTypes());
+                    if (res != null) {
+                        mapStrict(res, method);
                     }
                 }
             }
-            throw new NoSuchMethodException("methods matches failed");
+            return this;
         }
 
-        public void mapStrict(Method from, Method to) {
+        public Methods mapStrict(Method from, Method to) {
             if (!from.isAccessible()) {
                 from.setAccessible(true);
             }
             mappings.put(to, from);
+            return this;
         }
 
-        public void mapClass(Class<?> cls) {
-            validate(cls.isInterface(), String.format("cls %s not interface", cls.getName()));
+        public Methods mapInterface(Class<?> cls) {
+            checkState(cls.isInterface(), String.format("class %s is not an interface", cls.getName()));
             for (Method method : cls.getMethods()) {
-                if (!mappings.containsKey(method)) {
-                    try {
-                        Method mapped = objCls.getDeclaredMethod(method.getName(), method.getParameterTypes());
-                        mapStrict(mapped, method);
-                    } catch (Exception ignore) {
-                    }
+                Method res = lookup(objCls, method.getName(), method.getParameterTypes());
+                if (res != null) {
+                    mapStrict(res, method);
                 }
             }
+            return this;
         }
     }
 }

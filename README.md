@@ -7,10 +7,15 @@ This is a duck typing implementation based on reflection and dynamic proxies wit
 
 ### Examples
 
+Call with parameter contravariant.
+
 ```groovy
 class Foo {
     void run() {
         println("I'm running")
+    }
+    void print(String msg) {
+        println(msg)
     }
 }
 
@@ -18,7 +23,12 @@ Foo foo = new Foo()
 Runnable runnable = Types.asType(foo, Runnable.class)
 runnable.run()// I'm running
 
+Consumer<String> consumer = Types.asType(foo, Consumer.class)
+consumer.accept("hello")// hello
+
 ```
+
+Call with metheds name map.
 
 ```groovy
 class Foo {
@@ -28,10 +38,12 @@ class Foo {
 }
 
 Foo foo = new Foo()
-Types.ofMethodsDesc(foo).map("run", Closeable.class, "close")
+Types.getMethods(foo).map("run", Closeable.class, "close")
 Types.asType(foo, Closeable.class).close()// I'm running
 
 ```
+
+Call with methods mismap.
 
 ```groovy
 class Foo {
