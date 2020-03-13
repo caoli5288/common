@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
-import com.mengcraft.util.Hex;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -138,12 +137,21 @@ public class MavenLibrary extends Library {
             if (md5.isFile()) {
                 byte[] buf = Files.readAllBytes(file.toPath());
                 MessageDigest d = MessageDigest.getInstance("md5");
-                String result = Hex.hex(d.digest(buf));
+                String result = hex(d.digest(buf));
                 String l = Files.newBufferedReader(md5.toPath()).readLine();
                 return l.indexOf(' ') == -1 ? l.equals(result) : Iterators.forArray(l.split(" ")).next().equals(result);
             }
         }
         return false;
+    }
+
+    private static String hex(byte[] arr) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : arr) {
+            int i = b & 0xff;
+            sb.append(Integer.toHexString(i));
+        }
+        return sb.toString();
     }
 
     @Override
