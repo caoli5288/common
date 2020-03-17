@@ -3,7 +3,6 @@ package com.mengcraft.util.library;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterators;
 import com.mengcraft.util.XMLHelper;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -12,13 +11,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.ToString;
 import lombok.val;
+import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -135,23 +135,12 @@ public class MavenLibrary extends Library {
         if (getFile().isFile()) {
             val md5 = new File(file.getParentFile(), file.getName() + ".md5");
             if (md5.isFile()) {
-                byte[] buf = Files.readAllBytes(file.toPath());
-                MessageDigest d = MessageDigest.getInstance("md5");
-                String result = hex(d.digest(buf));
+                String res = DigestUtils.md5Hex(new FileInputStream(file));
                 String l = Files.newBufferedReader(md5.toPath()).readLine();
-                return l.indexOf(' ') == -1 ? l.equals(result) : Iterators.forArray(l.split(" ")).next().equals(result);
+                return l.indexOf(' ') == -1 ? l.equals(res) : Arrays.asList(l.split(" ")).iterator().next().equals(res);
             }
         }
         return false;
-    }
-
-    private static String hex(byte[] arr) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : arr) {
-            int i = b & 0xff;
-            sb.append(Integer.toHexString(i));
-        }
-        return sb.toString();
     }
 
     @Override
