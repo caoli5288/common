@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Data
@@ -22,18 +21,18 @@ public class GuiBuilderSpec {
     private List<Element> elements = new ArrayList<>();
     private Map<String, String> messages = new HashMap<>();
 
-    public GuiBuilder builder() {
+    public GuiBuilder builder(Player player) {
         GuiBuilder builder = GuiBuilder.builder()
                 .name(name)
                 .contents(contents);
         for (Element element : elements) {
-            builder.setSymbol(element.getSymbol(), element);
+            builder.setSymbol(element.getSymbol(), () -> element.apply(player));
         }
         return builder;
     }
 
     @Data
-    public static class Element implements Function<Player, GuiBuilder.ElementBinding> {
+    public static class Element {
 
         private String symbol;
         private int id;
@@ -41,7 +40,6 @@ public class GuiBuilderSpec {
         private Map<String, ?> metadata;
         private List<String> commands = new ArrayList<>();
 
-        @Override
         public GuiBuilder.ElementBinding apply(Player player) {
             ItemStack item = new ItemStack(id, 1, (short) data);
             if (metadata != null) {
@@ -55,10 +53,11 @@ public class GuiBuilderSpec {
                 }
                 item.setItemMeta(meta);
             }
-            return new GuiBuilder.ElementBinding(item, (_p, clickType) -> {
+            return new GuiBuilder.ElementBinding(item, e -> {
                 if (!commands.isEmpty()) {
+                    Player p = (Player) e.getWhoClicked();
                     for (String command : commands) {
-                        String res = PlaceholderAPI.setPlaceholders(_p, command);
+                        String res = PlaceholderAPI.setPlaceholders(p, command);
                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), res);
                     }
                 }

@@ -1,12 +1,9 @@
 package com.mengcraft.util;
 
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -16,15 +13,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class GuiBuilder {
 
-    private final Map<String, Function<Player, ElementBinding>> factories = new HashMap<>();
+    private final Map<String, Supplier<ElementBinding>> factories = new HashMap<>();
     private String name;
     private String contents;
 
@@ -52,17 +48,21 @@ public class GuiBuilder {
         return this;
     }
 
-    public GuiBuilder setSymbol(String symbol, Function<Player, ElementBinding> factory) {
+    public GuiBuilder setSymbol(String symbol, ElementBinding binding) {
+        return setSymbol(symbol, () -> binding);
+    }
+
+    public GuiBuilder setSymbol(String symbol, Supplier<ElementBinding> factory) {
         checkArgument(symbol.length() == 1, "symbol must single char");
         factories.put(symbol, factory);
         return this;
     }
 
-    public InventoryBinding build(Player player) {
-        InventoryBinding binding = new InventoryBinding(PlaceholderAPI.setPlaceholders(player, name));
+    public InventoryBinding build() {
+        InventoryBinding binding = new InventoryBinding(name);
         for (String symbol : contents.split("")) {
             if (factories.containsKey(symbol)) {
-                binding.bindings.add(factories.get(symbol).apply(player));
+                binding.bindings.add(factories.get(symbol).get());
             } else {
                 binding.bindings.add(new ElementBinding(new ItemStack(0), null));
             }
@@ -75,11 +75,18 @@ public class GuiBuilder {
     }
 
     @RequiredArgsConstructor
-    @Getter
     public static class ElementBinding {
 
         private final ItemStack item;
-        private final BiConsumer<Player, ClickType> consumer;
+        private final Consumer<InventoryClickEvent> consumer;
+
+        public ElementBinding(ItemStack item) {
+            this(item, null);
+        }
+
+        public void apply(InventoryClickEvent e) {
+            if (consumer != null) consumer.accept(e);
+        }
     }
 
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
@@ -88,6 +95,7 @@ public class GuiBuilder {
         private final List<ElementBinding> bindings = new ArrayList<>();
         private final String name;
         private Inventory inventory;
+        private Consumer<InventoryClickEvent> onGeneric;
 
         @Override
         public Inventory getInventory() {
@@ -100,24 +108,29 @@ public class GuiBuilder {
             return inventory;
         }
 
-        public void onClick(Player p, ClickType click, int slot) {
-            ElementBinding binding = bindings.get(slot);
-            if (binding.consumer != null) {
-                binding.consumer.accept(p, click);
-            }
-        }
-
         public Consumer<InventoryClickEvent> openInventory(Player player) {
             player.openInventory(getInventory());
             return (e) -> {
                 if (e.getInventory().getHolder() == this) {
                     e.setCancelled(true);
                     int slot = e.getRawSlot();
-                    if (slot >= 0 && slot < bindings.size()) {
-                        onClick(player, e.getClick(), slot);
+                    if (slot >= 0) {
+                        if (slot < bindings.size()) {
+                            bindings.get(slot).apply(e);
+                        } else {
+                            onGeneric(e);
+                        }
                     }
                 }
             };
+        }
+
+        public void onGeneric(Consumer<InventoryClickEvent> onGeneric) {
+            this.onGeneric = onGeneric;
+        }
+
+        private void onGeneric(InventoryClickEvent e) {
+            if (onGeneric != null) onGeneric.accept(e);
         }
     }
 }
