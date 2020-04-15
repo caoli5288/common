@@ -3,8 +3,10 @@ package com.mengcraft.util;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -23,6 +25,8 @@ public class GuiBuilder {
     private final Map<String, Supplier<ElementBinding>> factories = new HashMap<>();
     private String name;
     private String contents;
+    private Consumer<InventoryClickEvent> generic;
+    private Consumer<InventoryCloseEvent> close;
 
     private GuiBuilder() {
     }
@@ -30,6 +34,16 @@ public class GuiBuilder {
     public GuiBuilder name(String name) {
         this.name = name;
         return this;
+    }
+
+    public GuiBuilder generic(Consumer<InventoryClickEvent> generic) {
+        this.generic = generic;
+        return this;
+    }
+
+    public Consumer<InventoryCloseEvent> close(Consumer<InventoryCloseEvent> close) {
+        this.close = close;
+        return close;
     }
 
     public GuiBuilder contents(List<String> contents) {
@@ -60,11 +74,13 @@ public class GuiBuilder {
 
     public InventoryBinding build() {
         InventoryBinding binding = new InventoryBinding(name);
+        binding.generic = generic;
+        binding.close = close;
         for (String symbol : contents.split("")) {
             if (factories.containsKey(symbol)) {
                 binding.bindings.add(factories.get(symbol).get());
             } else {
-                binding.bindings.add(new ElementBinding(new ItemStack(0), null));
+                binding.bindings.add(new ElementBinding(new ItemStack(Material.AIR), null));
             }
         }
         return binding;
@@ -95,7 +111,17 @@ public class GuiBuilder {
         private final List<ElementBinding> bindings = new ArrayList<>();
         private final String name;
         private Inventory inventory;
-        private Consumer<InventoryClickEvent> onGeneric;
+        public Consumer<InventoryCloseEvent> close;
+        private Consumer<InventoryClickEvent> generic;
+        private boolean lock;
+
+        public void lock() {
+            lock = true;
+        }
+
+        public void unlock() {
+            lock = false;
+        }
 
         @Override
         public Inventory getInventory() {
@@ -113,6 +139,9 @@ public class GuiBuilder {
             return (e) -> {
                 if (e.getInventory().getHolder() == this) {
                     e.setCancelled(true);
+                    if (lock) {
+                        return;
+                    }
                     int slot = e.getRawSlot();
                     if (slot >= 0) {
                         if (slot < bindings.size()) {
@@ -125,12 +154,12 @@ public class GuiBuilder {
             };
         }
 
-        public void onGeneric(Consumer<InventoryClickEvent> onGeneric) {
-            this.onGeneric = onGeneric;
+        public void onClose(InventoryCloseEvent e) {
+            if (close != null) close.accept(e);
         }
 
         private void onGeneric(InventoryClickEvent e) {
-            if (onGeneric != null) onGeneric.accept(e);
+            if (generic != null) generic.accept(e);
         }
     }
 }
