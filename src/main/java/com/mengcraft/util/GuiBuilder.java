@@ -10,6 +10,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,8 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class GuiBuilder {
+
+    private static final ElementBinding EMPTY = new ElementBinding(new ItemStack(Material.AIR));
 
     private final Map<String, Supplier<ElementBinding>> factories = new HashMap<>();
     private String name;
@@ -80,10 +83,20 @@ public class GuiBuilder {
             if (factories.containsKey(symbol)) {
                 binding.bindings.add(factories.get(symbol).get());
             } else {
-                binding.bindings.add(new ElementBinding(new ItemStack(Material.AIR), null));
+                binding.bindings.add(EMPTY);
             }
         }
         return binding;
+    }
+
+    public static ItemStack newIcon(Material material, int damage, String displayName, List<String> lore) {
+        ItemStack icon = new ItemStack(material);
+        icon.setDurability((short) damage);
+        ItemMeta meta = icon.getItemMeta();
+        meta.setDisplayName(displayName);
+        meta.setLore(lore);
+        icon.setItemMeta(meta);
+        return icon;
     }
 
     public static GuiBuilder builder() {
@@ -111,7 +124,7 @@ public class GuiBuilder {
         private final List<ElementBinding> bindings = new ArrayList<>();
         private final String name;
         private Inventory inventory;
-        public Consumer<InventoryCloseEvent> close;
+        private Consumer<InventoryCloseEvent> close;
         private Consumer<InventoryClickEvent> generic;
         private boolean lock;
 
@@ -136,7 +149,11 @@ public class GuiBuilder {
 
         public Consumer<InventoryClickEvent> openInventory(Player player) {
             player.openInventory(getInventory());
-            return (e) -> {
+            return newConsumer();
+        }
+
+        public Consumer<InventoryClickEvent> newConsumer() {
+            return e -> {
                 if (e.getInventory().getHolder() == this) {
                     e.setCancelled(true);
                     if (lock) {
