@@ -1,8 +1,9 @@
 package com.mengcraft.util;
 
+import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import lombok.SneakyThrows;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.Bukkit;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -22,11 +23,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class MavenLibs {
 
-    private static final String LOCAL_REPOSITORY = System.getProperty("user.home") + "/.m2/repository/";
-    private static final String CENTRAL = "https://repo1.maven.org/maven2/";
+    private static final String LOCAL_REPOSITORY = System.getProperty("user.home") + "/.m2/repository";
+    private static final String CENTRAL = "https://repo1.maven.org/maven2";
 
     private static final DocumentBuilderFactory DOCUMENT_BUILDER_FACTORY = DocumentBuilderFactory.newInstance();
     private static final XPathFactory X_PATH_FACTORY = XPathFactory.newInstance();
@@ -41,52 +43,44 @@ public class MavenLibs {
         }
     }
 
-    private final String groupId;
-    private final String artifactId;
-    private final String version;
-
-    private String ns;
-    private String basename;
-    private File pom;
-    private File jar;
+    private final String ns;
+    private final String basename;
 
     private MavenLibs(Map<String, String> map) {
         this(map.get("groupId"), map.get("artifactId"), map.get("version"));
     }
 
-    public MavenLibs(String groupId, String artifactId, String version) {
-        this.groupId = groupId;
-        this.artifactId = artifactId;
-        this.version = version;
-        prepare();
-    }
-
-    private void prepare() {
+    private MavenLibs(String groupId, String artifactId, String version) {
         basename = artifactId + "-" + version;
         ns = groupId.replace('.', '/') + "/" + artifactId + "/" + version;
-        pom = new File(LOCAL_REPOSITORY, ns + "/" + basename + ".pom");
-        jar = new File(LOCAL_REPOSITORY, ns + "/" + basename + ".jar");
     }
 
     @SneakyThrows
-    public void apply(Plugin plugin) {
-        plugin.getLogger().info(String.format("Get MavenLibs(groupId=%s, artifactId=%s, version=%s)", groupId, artifactId, version));
+    private void load(ClassLoader loader) {
+        // process depends first
         List<MavenLibs> depends = depends();
         if (!depends.isEmpty()) {
             for (MavenLibs depend : depends) {
-                depend.apply(plugin);
+                depend.load(loader);
             }
         }
+        // hack into classloader
+        Logger logger = Bukkit.getLogger();
+        logger.info(String.format("Load MavenLibs(%s)", ns));
+        File jar = new File(LOCAL_REPOSITORY, ns + "/" + basename + ".jar");
         if (!jar.exists()) {
-            downloads(pom, CENTRAL + ns + "/" + basename + ".jar");
+            String url = CENTRAL + "/" + ns + "/" + basename + ".jar";
+            logger.info("Get " + url);
+            downloads(jar, url);
         }
-        INVOKER_addURL.invoke(plugin.getClass().getClassLoader(), jar.toURI().toURL());
+        INVOKER_addURL.invoke(loader, jar.toURI().toURL());
     }
 
     @SneakyThrows
     private List<MavenLibs> depends() {
+        File pom = new File(LOCAL_REPOSITORY, ns + "/" + basename + ".pom");
         if (!pom.exists()) {
-            downloads(pom, CENTRAL + ns + "/" + basename + ".pom");
+            downloads(pom, CENTRAL + "/" + ns + "/" + basename + ".pom");
         }
         DocumentBuilder builder = DOCUMENT_BUILDER_FACTORY.newDocumentBuilder();
         Document doc = builder.parse(pom);
@@ -111,6 +105,8 @@ public class MavenLibs {
     private void downloads(File f, String url) {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         try {
+            File parent = f.getParentFile();
+            Preconditions.checkState(parent.exists() || parent.mkdirs(), "mkdirs");
             try (FileOutputStream fs = new FileOutputStream(f)) {
                 ByteStreams.copy(connection.getInputStream(), fs);
             }
@@ -131,5 +127,12 @@ public class MavenLibs {
             }
         }
         return result;
+    }
+
+    public static void load(String groupId, String artifactId, String version) {
+        ClassLoader loader = MavenLibs.class.getClassLoader();
+        Preconditions.checkState(loader instanceof URLClassLoader);
+        MavenLibs libs = new MavenLibs(groupId, artifactId, version);
+        libs.load(loader);
     }
 }
