@@ -2,6 +2,7 @@ package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
 import org.w3c.dom.Document;
@@ -28,7 +29,7 @@ import java.util.logging.Logger;
 public class MavenLibs {
 
     private static final String LOCAL_REPOSITORY = System.getProperty("user.home") + "/.m2/repository";
-    private static final String CENTRAL = "https://repo1.maven.org/maven2";
+    private static final String CENTRAL = "https://mirrors.huaweicloud.com/repository/maven";
 
     private static final DocumentBuilderFactory DOCUMENT_BUILDER_FACTORY = DocumentBuilderFactory.newInstance();
     private static final XPathFactory X_PATH_FACTORY = XPathFactory.newInstance();
@@ -103,14 +104,17 @@ public class MavenLibs {
 
     @SneakyThrows
     private void downloads(File f, String url) {
+        File parent = f.getParentFile();
+        Preconditions.checkState(parent.exists() || parent.mkdirs(), "mkdirs");
+        File tmp = new File(parent, f.getName() + ".tmp");
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         try {
-            File parent = f.getParentFile();
-            Preconditions.checkState(parent.exists() || parent.mkdirs(), "mkdirs");
-            try (FileOutputStream fs = new FileOutputStream(f)) {
+            try (FileOutputStream fs = new FileOutputStream(tmp)) {
                 ByteStreams.copy(connection.getInputStream(), fs);
             }
-        } catch (Exception ignored) {
+            Files.move(tmp, f);
+        } catch (Exception e) {
+            Preconditions.checkState(tmp.delete(), "delete tmp");
         } finally {
             connection.disconnect();
         }
