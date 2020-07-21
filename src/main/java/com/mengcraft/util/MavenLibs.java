@@ -21,10 +21,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class MavenLibs {
 
@@ -46,23 +48,31 @@ public class MavenLibs {
 
     private final String ns;
     private final String basename;
+    private final boolean optional;
+    private final String scope;
 
-    private MavenLibs(Map<String, String> map) {
-        this(map.get("groupId"), map.get("artifactId"), map.get("version"));
-    }
-
-    private MavenLibs(String groupId, String artifactId, String version) {
+    private MavenLibs(String groupId, String artifactId, String version, boolean optional, String scope) {
         basename = artifactId + "-" + version;
         ns = groupId.replace('.', '/') + "/" + artifactId + "/" + version;
+        this.optional = optional;
+        this.scope = scope;
+    }
+
+    public void load() {
+        load(MavenLibs.class.getClassLoader());
     }
 
     @SneakyThrows
-    private void load(ClassLoader loader) {
+    public void load(ClassLoader cl) {
+        Preconditions.checkState(cl instanceof URLClassLoader, "Current classloader not instanceof URLClassLoader");
+        if (!isNullOrEquals(scope, "compile") || optional) {
+            return;
+        }
         // process depends first
         List<MavenLibs> depends = depends();
         if (!depends.isEmpty()) {
             for (MavenLibs depend : depends) {
-                depend.load(loader);
+                depend.load(cl);
             }
         }
         // hack into classloader
@@ -74,7 +84,7 @@ public class MavenLibs {
             logger.info("Get " + url);
             downloads(jar, url);
         }
-        INVOKER_addURL.invoke(loader, jar.toURI().toURL());
+        INVOKER_addURL.invoke(cl, jar.toURI().toURL());
     }
 
     @SneakyThrows
@@ -91,13 +101,13 @@ public class MavenLibs {
         // parent
         Node parent = (Node) x.evaluate("/project/parent", doc, XPathConstants.NODE);
         if (parent != null) {
-            result.add(new MavenLibs(mapOf(parent)));
+            result.add(of(mapOf(parent)));
         }
         // dependencies
-        NodeList dependencies = (NodeList) x.evaluate("/project/dependencies/dependency[not(scope) or scope=\"compile\"]", doc, XPathConstants.NODESET);
+        NodeList dependencies = (NodeList) x.evaluate("/project/dependencies/dependency", doc, XPathConstants.NODESET);
         int length = dependencies.getLength();
         for (int i = 0; i < length; i++) {
-            result.add(new MavenLibs(mapOf(dependencies.item(i))));
+            result.add(of(mapOf(dependencies.item(i))));
         }
         return result;
     }
@@ -106,13 +116,17 @@ public class MavenLibs {
     private void downloads(File f, String url) {
         File parent = f.getParentFile();
         Preconditions.checkState(parent.exists() || parent.mkdirs(), "mkdirs");
-        File tmp = new File(parent, f.getName() + ".tmp");
+        File tmp = File.createTempFile("MavenLibs", ".jar");
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         try {
             try (FileOutputStream fs = new FileOutputStream(tmp)) {
                 ByteStreams.copy(connection.getInputStream(), fs);
             }
-            Files.move(tmp, f);
+            if (f.exists()) {// async downloads?
+                Preconditions.checkState(tmp.delete(), "delete tmp");
+            } else {
+                Files.move(tmp, f);
+            }
         } catch (Exception e) {
             Preconditions.checkState(tmp.delete(), "delete tmp");
         } finally {
@@ -133,10 +147,15 @@ public class MavenLibs {
         return result;
     }
 
-    public static void load(String groupId, String artifactId, String version) {
-        ClassLoader loader = MavenLibs.class.getClassLoader();
-        Preconditions.checkState(loader instanceof URLClassLoader);
-        MavenLibs libs = new MavenLibs(groupId, artifactId, version);
-        libs.load(loader);
+    private static boolean isNullOrEquals(String obj, String comp) {
+        return obj == null || obj.equals(comp);
+    }
+
+    public static MavenLibs of(String groupId, String artifactId, String version) {
+        return new MavenLibs(groupId, artifactId, version, false, null);
+    }
+
+    public static MavenLibs of(Map<String, String> map) {
+        return new MavenLibs(map.get("groupId"), map.get("artifactId"), map.get("version"), Boolean.parseBoolean(map.get("optional")), map.get("scope"));
     }
 }
