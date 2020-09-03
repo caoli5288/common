@@ -1,9 +1,5 @@
 package com.mengcraft.util;
 
-import com.google.common.base.Preconditions;
-import lombok.NonNull;
-import org.json.simple.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -11,7 +7,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * https://tools.ietf.org/html/rfc4180
@@ -34,11 +32,14 @@ public class CommaSeparatedValuesReader extends BufferedReader {
         this(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
     }
 
-    public String[] readSeparatedValues() throws IOException {
+    public List<String> readSeparatedValues() throws IOException {
+        int n = read();
+        if (n == -1) {// EOF
+            return null;
+        }
         Values values = new Values();
-        for (; ; ) {
-            int reads = read();
-            if (reads == -1 || reads(values, reads)) {
+        for (; ; n = read()) {
+            if (n == -1 || reads(values, n)) {
                 lines++;
                 return values.endValues();
             }
@@ -84,55 +85,37 @@ public class CommaSeparatedValuesReader extends BufferedReader {
         return false;
     }
 
-    public JSONObject readSeparatedValues(@NonNull String[] keys) throws IOException {
-        Preconditions.checkArgument(keys.length != 0, "Keys must not nil.");
-        JSONObject obj = new JSONObject();
-        String[] values = readSeparatedValues();
-        if (keys.length != values.length) {
-            throw new IOException("Keys length must same as values");
-        }
-        for (int i = 0; i < keys.length; i++) {
-            obj.put(keys[i], values[i]);
-        }
-        return obj;
-    }
-
     private class Values {
 
-        private String[] buf = new String[maxValues];
-        private int length;
-        private StringBuilder value = new StringBuilder();
+        private final List<String> values = new ArrayList<>(maxValues);
+        private StringBuilder sb = new StringBuilder();
         private int quota;
 
         void append(char v) {
-            value.append(v);
+            sb.append(v);
         }
 
         void endValue() {
-            if (buf.length == length) {
-                buf = Arrays.copyOf(buf, buf.length << 1);
-            }
             quota = 0;
-            buf[length++] = value.toString();
+            values.add(sb.toString());
         }
 
         void newValue() {
             endValue();
-            value = new StringBuilder();
-
+            sb = new StringBuilder();
         }
 
-        String[] endValues() {
+        List<String> endValues() {
             endValue();
-            if (maxValues < length) {
-                maxValues = length;
+            if (maxValues < values.size()) {
+                maxValues = values.size();
             }
-            return Arrays.copyOf(buf, length);
+            return values;
         }
 
         void appendQuota() throws IOException {
             if (quota == 0) {
-                if (value.length() != 0) {
+                if (sb.length() != 0) {
                     throw new IOException(String.format("Exception occurred after reads %s line.", lines));
                 }
                 quota = 1;
@@ -140,7 +123,7 @@ public class CommaSeparatedValuesReader extends BufferedReader {
                 quota = 2;
             } else {// When quota == 2.
                 quota = 1;
-                value.append('"');
+                sb.append('"');
             }
         }
     }
