@@ -1,16 +1,18 @@
 package com.mengcraft.util;
 
+import com.google.common.base.Preconditions;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,30 +25,28 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class GuiBuilder {
 
-    private static final ElementBinding EMPTY = new ElementBinding(new ItemStack(Material.AIR));
+    private static final GuiButton EMPTY = new GuiButton(new ItemStack(Material.AIR));
+    private static Plugin plugin;
 
-    private final Map<String, Supplier<ElementBinding>> factories = new HashMap<>();
+    private final Map<String, Supplier<GuiButton>> factories = new HashMap<>();
     private String name;
     private String contents;
-    private Consumer<InventoryClickEvent> generic;
-    private Consumer<InventoryCloseEvent> close;
-
-    private GuiBuilder() {
-    }
+    private Consumer<InventoryClickEvent> onClick;
+    private Consumer<InventoryCloseEvent> onClose;
 
     public GuiBuilder name(String name) {
         this.name = name;
         return this;
     }
 
-    public GuiBuilder generic(Consumer<InventoryClickEvent> generic) {
-        this.generic = generic;
+    public GuiBuilder onClick(Consumer<InventoryClickEvent> onClick) {
+        this.onClick = onClick;
         return this;
     }
 
-    public Consumer<InventoryCloseEvent> close(Consumer<InventoryCloseEvent> close) {
-        this.close = close;
-        return close;
+    public GuiBuilder onClose(Consumer<InventoryCloseEvent> onClose) {
+        this.onClose = onClose;
+        return this;
     }
 
     public GuiBuilder contents(List<String> contents) {
@@ -65,67 +65,65 @@ public class GuiBuilder {
         return this;
     }
 
-    public GuiBuilder setSymbol(String symbol, ElementBinding binding) {
+    public GuiBuilder setSymbol(String symbol, GuiButton binding) {
         return setSymbol(symbol, () -> binding);
     }
 
-    public GuiBuilder setSymbol(String symbol, Supplier<ElementBinding> factory) {
+    public GuiBuilder setSymbol(String symbol, Supplier<GuiButton> factory) {
         checkArgument(symbol.length() == 1, "symbol must single char");
         factories.put(symbol, factory);
         return this;
     }
 
-    public InventoryBinding build() {
-        InventoryBinding binding = new InventoryBinding(name);
-        binding.generic = generic;
-        binding.close = close;
+    public GuiInventory build() {
+        GuiInventory gui = new GuiInventory(name);
+        gui.onClick = onClick;
+        gui.onClose = onClose;
         for (String symbol : contents.split("")) {
             if (factories.containsKey(symbol)) {
-                binding.bindings.add(factories.get(symbol).get());
+                gui.bindings.add(factories.get(symbol).get());
             } else {
-                binding.bindings.add(EMPTY);
+                gui.bindings.add(EMPTY);
             }
         }
-        return binding;
-    }
-
-    public static ItemStack newIcon(Material material, int damage, String displayName, List<String> lore) {
-        ItemStack icon = new ItemStack(material);
-        icon.setDurability((short) damage);
-        ItemMeta meta = icon.getItemMeta();
-        meta.setDisplayName(displayName);
-        meta.setLore(lore);
-        icon.setItemMeta(meta);
-        return icon;
+        return gui;
     }
 
     public static GuiBuilder builder() {
         return new GuiBuilder();
     }
 
+    public static void setup(Plugin plugin) {
+        Preconditions.checkState(GuiBuilder.plugin == null);
+        GuiBuilder.plugin = plugin;
+        Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
+    }
+
     @RequiredArgsConstructor
-    public static class ElementBinding {
+    public static class GuiButton {
 
-        private final ItemStack item;
-        private final Consumer<InventoryClickEvent> consumer;
+        private final ItemStack icon;
+        private final Consumer<InventoryClickEvent> onClick;
 
-        public ElementBinding(ItemStack item) {
-            this(item, null);
+        public GuiButton(ItemStack icon) {
+            this(icon, null);
         }
 
-        public void apply(InventoryClickEvent e) {
-            if (consumer != null) consumer.accept(e);
+        void onClick(InventoryClickEvent e) {
+            if (onClick != null) {
+                onClick.accept(e);
+            }
         }
     }
 
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-    public static class InventoryBinding implements InventoryHolder {
+    public static class GuiInventory implements InventoryHolder {
 
-        private final List<ElementBinding> bindings = new ArrayList<>();
+        private final List<GuiButton> bindings = new ArrayList<>();
         private final String name;
         private Inventory inventory;
-        private Consumer<InventoryCloseEvent> close;
-        private Consumer<InventoryClickEvent> generic;
+        private Consumer<InventoryCloseEvent> onClose;
+        private Consumer<InventoryClickEvent> onClick;
         private boolean lock;
 
         public void lock() {
@@ -139,44 +137,60 @@ public class GuiBuilder {
         @Override
         public Inventory getInventory() {
             if (inventory == null) {
-                inventory = Bukkit.createInventory(this, bindings.size(), name);
-                for (int i = 0; i < bindings.size(); i++) {
-                    inventory.setItem(i, bindings.get(i).item);
+                int size = bindings.size();
+                inventory = Bukkit.createInventory(this, size, name);
+                for (int i = 0; i < size; i++) {
+                    inventory.setItem(i, bindings.get(i).icon);
                 }
             }
             return inventory;
         }
 
-        public Consumer<InventoryClickEvent> openInventory(Player player) {
-            player.openInventory(getInventory());
-            return newConsumer();
-        }
-
-        public Consumer<InventoryClickEvent> newConsumer() {
-            return e -> {
-                if (e.getInventory().getHolder() == this) {
-                    e.setCancelled(true);
-                    if (lock) {
-                        return;
-                    }
-                    int slot = e.getRawSlot();
-                    if (slot >= 0) {
-                        if (slot < bindings.size()) {
-                            bindings.get(slot).apply(e);
-                        } else {
-                            onGeneric(e);
-                        }
-                    }
+        void onClick(InventoryClickEvent event) {
+            event.setCancelled(true);
+            if (lock) {
+                return;
+            }
+            int slot = event.getRawSlot();
+            if (slot >= 0) {
+                if (slot < bindings.size()) {
+                    bindings.get(slot).onClick(event);
+                } else if (onClick != null) {
+                    onClick.accept(event);
                 }
-            };
+            }
         }
 
-        public void onClose(InventoryCloseEvent e) {
-            if (close != null) close.accept(e);
+        void onClose(InventoryCloseEvent e) {
+            if (onClose == null) {
+                return;
+            }
+            onClose.accept(e);
+        }
+    }
+
+    public static class Listeners implements Listener {
+
+        @EventHandler
+        public void on(InventoryClickEvent event) {
+            Inventory inventory = event.getClickedInventory();
+            if (inventory != null) {
+                InventoryHolder b = inventory.getHolder();
+                if (b instanceof GuiInventory) {
+                    ((GuiInventory) b).onClick(event);
+                }
+            }
         }
 
-        private void onGeneric(InventoryClickEvent e) {
-            if (generic != null) generic.accept(e);
+        @EventHandler
+        public void on(InventoryCloseEvent event) {
+            Inventory inventory = event.getInventory();
+            if (inventory != null) {
+                InventoryHolder b = inventory.getHolder();
+                if (b instanceof GuiInventory) {
+                    ((GuiInventory) b).onClose(event);
+                }
+            }
         }
     }
 }
