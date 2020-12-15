@@ -40,7 +40,7 @@ public class GuiBuilderSpec {
         private Map<String, ?> metadata;
         private List<String> commands = new ArrayList<>();
 
-        public GuiBuilder.GuiButton apply(Player player) {
+        public GuiBuilder.Button apply(Player player) {
             ItemStack item = new ItemStack(id, 1, (short) data);
             if (metadata != null) {
                 ItemMeta meta = item.getItemMeta();
@@ -53,7 +53,7 @@ public class GuiBuilderSpec {
                 }
                 item.setItemMeta(meta);
             }
-            return new GuiBuilder.GuiButton(item, e -> {
+            return new GuiBuilder.Button(item, e -> {
                 if (!commands.isEmpty()) {
                     Player p = (Player) e.getWhoClicked();
                     for (String command : commands) {
