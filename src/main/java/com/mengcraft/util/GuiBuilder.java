@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -180,19 +181,14 @@ public class GuiBuilder {
 
     public static abstract class Gui {
 
-        protected final HumanEntity player;
         protected Context context;
 
-        protected Gui(HumanEntity player) {
-            this.player = player;
-        }
+        protected abstract void setup(Player player, GuiBuilder builder);
 
-        protected abstract void setup(GuiBuilder builder);
-
-        public void open() {
+        public void open(Player player) {
             if (context == null) {
                 GuiBuilder builder = builder();
-                setup(builder);
+                setup(player, builder);
                 context = builder.build();
             }
             player.openInventory(context.getInventory());
@@ -206,17 +202,17 @@ public class GuiBuilder {
             context.unlock();
         }
 
-        protected void update() {
+        protected void update(Player player) {
             Preconditions.checkNotNull(context);
             GuiBuilder builder = builder();
-            setup(builder);
+            setup(player, builder);
             Context from = builder.build();
             context.copy(from);
             context.fills();
         }
 
-        protected void close() {
-            Bukkit.getScheduler().runTask(plugin, player::closeInventory);
+        protected void clear() {
+            context = null;
         }
     }
 
