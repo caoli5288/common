@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 public class MavenLibs {
 
     private static final String LOCAL_REPOSITORY = System.getProperty("user.home") + "/.m2/repository";
-    private static final String CENTRAL = "https://mirrors.huaweicloud.com/repository/maven";
+    private static final String CENTRAL = System.getProperty("maven.repository", "https://mirrors.huaweicloud.com/repository/maven");
 
     private static final DocumentBuilderFactory DOCUMENT_BUILDER_FACTORY = DocumentBuilderFactory.newInstance();
     private static final XPathFactory X_PATH_FACTORY = XPathFactory.newInstance();
@@ -126,8 +126,9 @@ public class MavenLibs {
     private void downloads(File f, String url) {
         File parent = f.getParentFile();
         Preconditions.checkState(parent.exists() || parent.mkdirs(), "mkdirs");
-        File tmp = File.createTempFile("MavenLibs", ".jar");
+        File tmp = File.createTempFile("MavenLibs", ".tmp");
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:86.0) Gecko/20100101 Firefox/86.0");
         try {
             try (FileOutputStream fs = new FileOutputStream(tmp)) {
                 ByteStreams.copy(connection.getInputStream(), fs);
