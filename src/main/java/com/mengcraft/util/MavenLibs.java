@@ -1,6 +1,7 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
@@ -21,7 +22,6 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,20 +41,35 @@ public class MavenLibs {
     private static final Logger LOGGER = Logger.getLogger("MavenLibs");
     private static final Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{(.+?)}");
     private static final Set<String> NSS = Sets.newHashSet();
-    private static final Method INVOKER_addURL = asInvoker(URLClassLoader.class, "addURL", URL.class);
+    private static final Method INVOKER_addURL = assetAccessibleMethod(URLClassLoader.class, "addURL", URL.class);
 
     private final Map<String, String> properties = Maps.newHashMap();
     private final String ns;
     private final String basename;
     private final boolean optional;
+    private MavenLibs parent;
+    private List<MavenLibs> dependencies;
 
     private MavenLibs(String groupId, String artifactId, String version, boolean optional) {
+        properties.put("groupId", groupId);
+        properties.put("artifactId", artifactId);
+        properties.put("version", version);
         properties.put("project.groupId", groupId);
         properties.put("project.artifactId", artifactId);
         properties.put("project.version", version);
         basename = artifactId + "-" + version;
         ns = groupId.replace('.', '/') + "/" + artifactId + "/" + version;
         this.optional = optional;
+    }
+
+    private String getProperty(String name) {
+        if (parent != null) {
+            String property = parent.getProperty(name);
+            if (property != null) {
+                return property;
+            }
+        }
+        return properties.get(name);
     }
 
     public void load() {
@@ -67,12 +82,14 @@ public class MavenLibs {
         if (optional || NSS.contains(ns)) {
             return;
         }
-        // process depends first
-        List<MavenLibs> depends = depends();
-        if (!depends.isEmpty()) {
-            for (MavenLibs depend : depends) {
-                depend.load(cl);
-            }
+        // parse pom file
+        initialize();
+        // parent and dependencies
+        if (parent != null) {
+            parent.load(cl);
+        }
+        for (MavenLibs dep : dependencies) {
+            dep.load(cl);
         }
         NSS.add(ns);
         // skip if not jar packages
@@ -91,7 +108,7 @@ public class MavenLibs {
     }
 
     @SneakyThrows
-    private List<MavenLibs> depends() {
+    private void initialize() {// initialize
         File pom = new File(LOCAL_REPOSITORY, ns + "/" + basename + ".pom");
         if (!pom.exists()) {
             downloads(pom, CENTRAL + "/" + ns + "/" + basename + ".pom");
@@ -104,22 +121,19 @@ public class MavenLibs {
         if (node != null) {
             mapOf(() -> properties, node);
         }
-        // result container
-        List<MavenLibs> result = new ArrayList<>();
         // parent
         node = (Node) x.evaluate("/project/parent", doc, XPathConstants.NODE);
         if (node != null) {
-            MavenLibs parent = of(mapOf(node));
+            parent = dependOf(mapOf(node));
             parent.properties.put("project.packaging", "pom");
-            result.add(parent);
         }
         // dependencies
-        NodeList dependencies = (NodeList) x.evaluate("/project/dependencies/dependency", doc, XPathConstants.NODESET);
-        int length = dependencies.getLength();
-        for (int i = 0; i < length; i++) {
-            result.add(of(mapOf(dependencies.item(i))));
+        NodeList nodes = (NodeList) x.evaluate("/project/dependencies/dependency", doc, XPathConstants.NODESET);
+        int len = nodes.getLength();
+        dependencies = Lists.newArrayListWithCapacity(len);
+        for (int i = 0; i < len; i++) {
+            dependencies.add(dependOf(mapOf(nodes.item(i))));
         }
-        return result;
     }
 
     @SneakyThrows
@@ -158,17 +172,29 @@ public class MavenLibs {
             if (_node.hasChildNodes()) {
                 String nodeName = _node.getNodeName();
                 String value = _node.getFirstChild().getNodeValue();
-                Matcher mc = PROPERTY_PATTERN.matcher(value);
-                while (mc.find()) {
-                    value = value.replace(mc.group(), String.valueOf(properties.get(mc.group(1))));
-                }
                 map.put(nodeName, value);
             }
         }
         return map;
     }
 
-    private static Method asInvoker(Class<?> cls, String name, Class<?>... parameters) {
+    private String resolve(String value) {
+        Matcher mc = PROPERTY_PATTERN.matcher(value);
+        while (mc.find()) {
+            value = value.replace(mc.group(), String.valueOf(getProperty(mc.group(1))));
+        }
+        return value;
+    }
+
+    private MavenLibs dependOf(Map<String, String> map) {
+        String groupId = map.get("groupId");
+        String artifactId = map.get("artifactId");
+        String version = resolve(map.get("version"));
+        boolean optional = Boolean.parseBoolean(map.get("optional")) || version == null || !isNullOrEquals(map.get("scope"), "compile");
+        return new MavenLibs(groupId, artifactId, version, optional);
+    }
+
+    private static Method assetAccessibleMethod(Class<?> cls, String name, Class<?>... parameters) {
         try {
             Method method = cls.getDeclaredMethod(name, parameters);
             method.setAccessible(true);
@@ -182,15 +208,12 @@ public class MavenLibs {
         return obj == null || obj.equals(comp);
     }
 
-    private static MavenLibs of(Map<String, String> map) {
-        String groupId = map.get("groupId");
-        String artifactId = map.get("artifactId");
-        String version = map.get("version");
-        boolean optional = Boolean.parseBoolean(map.get("optional")) || version == null || !isNullOrEquals(map.get("scope"), "compile");
-        return new MavenLibs(groupId, artifactId, version, optional);
-    }
-
     public static MavenLibs of(String groupId, String artifactId, String version) {
         return new MavenLibs(groupId, artifactId, version, false);
+    }
+
+    public static MavenLibs of(String namespace) {
+        String[] split = namespace.split(":");
+        return of(split[0], split[1], split[2]);
     }
 }
