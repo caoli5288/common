@@ -22,13 +22,9 @@ class Foo {
 Foo foo = new Foo()
 Runnable runnable = Types.asType(foo, Runnable.class)
 runnable.run()// I'm running
-
-Consumer<String> consumer = Types.asType(foo, Consumer.class)
-consumer.accept("hello")// hello
-
 ```
 
-Call with metheds name map.
+Call with method name map.
 
 ```groovy
 class Foo {
@@ -38,27 +34,7 @@ class Foo {
 }
 
 Foo foo = new Foo()
-Types.getMethods(foo).map("run", Closeable.class, "close")
+Types.desc(Foo.class).map("run", Closeable.class, "close")
 Types.asType(foo, Closeable.class).close()// I'm running
-
-```
-
-Call with methods mismap.
-
-```groovy
-class Foo {
-    void run() {
-        println("I'm running")
-    }
-}
-
-interface Bar {
-    void run()
-    void close()
-}
-
-Bar bar = Types.asType(new Foo(), Bar.class)
-bar.run()// I'm running
-bar.close()// an NoSuchMethodException thrown
 
 ```
