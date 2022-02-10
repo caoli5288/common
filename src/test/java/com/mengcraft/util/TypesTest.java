@@ -1,10 +1,13 @@
 package com.mengcraft.util;
 
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
 public class TypesTest {
 
@@ -21,8 +24,57 @@ public class TypesTest {
         Assert.assertEquals("abc", callable.call());
     }
 
+    @Test
+    public void testLambda() {
+        I1 i1 = Types.asType(new Bob(), I1.class);
+        i1.a();
+        Assert.assertEquals("b", i1.b());
+        Assert.assertEquals(111, i1.c());
+        Assert.assertEquals("ab", i1.d("a", "b"));
+        Assert.assertEquals(3, i1.sum(0, 1, 2));
+    }
+
+    @Test
+    public void testAsLambda() {
+        Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
+        Types.asLambda(method, Consumer.class);
+    }
+
+    public static class Bob {
+
+        void a() {
+            System.out.println("a");
+        }
+
+        String b() {
+            return "b";
+        }
+
+        int c() {
+            return 111;
+        }
+
+        String d(String a, String b) {
+            return a + b;
+        }
+
+        int sum(int i, int i1, int i2) {
+            return i + i1 + i2;
+        }
+    }
+
     public interface I1 {
 
         boolean after(Timestamp timestamp);
+
+        void a();
+
+        String b();
+
+        int c();
+
+        String d(String a, String b);
+
+        int sum(int i, int i1, int i2);
     }
 }
