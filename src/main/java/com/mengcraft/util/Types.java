@@ -1,5 +1,7 @@
 package com.mengcraft.util;
 
+import org.apache.commons.lang3.reflect.MethodUtils;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -37,35 +39,12 @@ public class Types {
         return desc;
     }
 
-    private static Method lookup(Class<?> cls, String methodName, Class<?>... paramsTypes) {
-        try {
-            return cls.getDeclaredMethod(methodName, paramsTypes);
-        } catch (Exception e) {
-            // TODO still buggy here
-            Class<?> sCls = cls.getSuperclass();
-            if (sCls != null) {
-                Method method = lookup(sCls, methodName, paramsTypes);
-                if (method != null) {
-                    return method;
-                }
-            }
-            for (Method method : cls.getDeclaredMethods()) {
-                if (method.getName().equals(methodName) && method.getParameterCount() == paramsTypes.length && matches(method.getParameterTypes(), paramsTypes)) {
-                    return method;
-                }
-            }
-            return null;
+    private static Method lookup(Class<?> cls, String methodName, Class<?>... types) {
+        Method method = MethodUtils.getMatchingMethod(cls, methodName, types);
+        if (method != null && !method.isAccessible()) {
+            method.setAccessible(true);
         }
-    }
-
-    private static boolean matches(Class<?>[] parameterTypes, Class<?>[] paramsTypes) {
-        for (int i = 0; i < parameterTypes.length; i++) {
-            Class<?> paramType = paramsTypes[i];
-            if (paramType != Object.class && !parameterTypes[i].isAssignableFrom(paramType)) {// guess (paramType == Object) always generic parameter
-                return false;
-            }
-        }
-        return true;
+        return method;
     }
 
     private static class Invoker implements InvocationHandler {
