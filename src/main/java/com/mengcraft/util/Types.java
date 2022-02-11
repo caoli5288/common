@@ -70,62 +70,60 @@ public class Types {
         return method;
     }
 
-    static Function<Method, IAccessor> ofAccessor() {
-        return method -> {
-            Class<?>[] types = method.getParameterTypes();
-            if (method.getReturnType() == void.class) {
-                switch (types.length) {
-                    case 0:
-                        Consumer<Object> consumer = asLambda(method, Consumer.class);
-                        return (obj, params) -> {
-                            consumer.accept(obj);
-                            return null;
-                        };
-                    case 1:
-                        BiConsumer<Object, Object> bc = asLambda(method, BiConsumer.class);
-                        return (obj, params) -> {
-                            bc.accept(obj, params[0]);
-                            return null;
-                        };
-                    case 2:
-                        Consumer3 consumer3 = asLambda(method, Consumer3.class);
-                        return (obj, params) -> {
-                            consumer3.accept(obj, params[0], params[1]);
-                            return null;
-                        };
-                    case 3:
-                        Consumer4 consumer4 = asLambda(method, Consumer4.class);
-                        return (obj, params) -> {
-                            consumer4.accept(obj, params[0], params[1], params[2]);
-                            return null;
-                        };
-                }
-            } else {
-                switch (types.length) {
-                    case 0:
-                        Function<Object, Object> function = asLambda(method, Function.class);
-                        return (obj, params) -> function.apply(obj);
-                    case 1:
-                        BiFunction<Object, Object, Object> bf = asLambda(method, BiFunction.class);
-                        return (obj, params) -> bf.apply(obj, params[0]);
-                    case 2:
-                        Function3 function3 = asLambda(method, Function3.class);
-                        return (obj, params) -> function3.apply(obj, params[0], params[1]);
-                    case 3:
-                        Function4 function4 = asLambda(method, Function4.class);
-                        return (obj, params) -> function4.apply(obj, params[0], params[1], params[2]);
-                }
+    public static IAccessor asAccessor(Method method) {
+        Class<?>[] types = method.getParameterTypes();
+        if (method.getReturnType() == void.class) {
+            switch (types.length) {
+                case 0:
+                    Consumer<Object> consumer = asLambda(method, Consumer.class);
+                    return (obj, params) -> {
+                        consumer.accept(obj);
+                        return null;
+                    };
+                case 1:
+                    BiConsumer<Object, Object> bc = asLambda(method, BiConsumer.class);
+                    return (obj, params) -> {
+                        bc.accept(obj, params[0]);
+                        return null;
+                    };
+                case 2:
+                    Consumer3 consumer3 = asLambda(method, Consumer3.class);
+                    return (obj, params) -> {
+                        consumer3.accept(obj, params[0], params[1]);
+                        return null;
+                    };
+                case 3:
+                    Consumer4 consumer4 = asLambda(method, Consumer4.class);
+                    return (obj, params) -> {
+                        consumer4.accept(obj, params[0], params[1], params[2]);
+                        return null;
+                    };
             }
-            return new SimpleAccessor(method);
-        };
+        } else {
+            switch (types.length) {
+                case 0:
+                    Function<Object, Object> function = asLambda(method, Function.class);
+                    return (obj, params) -> function.apply(obj);
+                case 1:
+                    BiFunction<Object, Object, Object> bf = asLambda(method, BiFunction.class);
+                    return (obj, params) -> bf.apply(obj, params[0]);
+                case 2:
+                    Function3 function3 = asLambda(method, Function3.class);
+                    return (obj, params) -> function3.apply(obj, params[0], params[1]);
+                case 3:
+                    Function4 function4 = asLambda(method, Function4.class);
+                    return (obj, params) -> function4.apply(obj, params[0], params[1], params[2]);
+            }
+        }
+        return new SimpleAccessor(method);
     }
 
     @SneakyThrows
     public static <T> T asLambda(Method method, Class<T> cls) {
         Preconditions.checkState(cls.isInterface());
-        MethodHandle mh = LOOKUP.unreflect(method);
         Method sam = sam(cls);
         Objects.requireNonNull(sam, "Class is not SAM class. " + cls);
+        MethodHandle mh = LOOKUP.unreflect(method);
         CallSite ct = LambdaMetafactory.metafactory(LOOKUP,
                 sam.getName(),
                 MethodType.methodType(cls),
@@ -148,7 +146,7 @@ public class Types {
         return sam;
     }
 
-    interface IAccessor {
+    public interface IAccessor {
 
         Object access(Object obj, Object[] params) throws Exception;
     }
@@ -199,7 +197,7 @@ public class Types {
         }
 
         IAccessor mapStrict(Method from, Method to) {
-            IAccessor accessor = accessors.computeIfAbsent(from, ofAccessor());
+            IAccessor accessor = accessors.computeIfAbsent(from, Types::asAccessor);
             map.put(to, accessor);
             return accessor;
         }
