@@ -37,30 +37,7 @@ public class TypesTest {
     @Test
     public void testAsLambda() {
         Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
-        Types.asLambda(method, Consumer.class);
-    }
-
-    public static class Bob {
-
-        void a() {
-            System.out.println("a");
-        }
-
-        String b() {
-            return "b";
-        }
-
-        int c() {
-            return 111;
-        }
-
-        String d(String a, String b) {
-            return a + b;
-        }
-
-        int sum(int i, int i1, int i2) {
-            return i + i1 + i2;
-        }
+        Types.asLambda(method, Consumer.class).accept(new Bob());
     }
 
     public interface I1 {
