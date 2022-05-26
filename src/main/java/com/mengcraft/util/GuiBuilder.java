@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -125,14 +124,15 @@ public class GuiBuilder {
         private Inventory inventory;
         private Consumer<InventoryCloseEvent> close;
         private Consumer<InventoryClickEvent> click;
-        private boolean lock;
+        private boolean locked;
+        private boolean closed;
 
         public void lock() {
-            lock = true;
+            locked = true;
         }
 
         public void unlock() {
-            lock = false;
+            locked = false;
         }
 
         void copy(Context from) {
@@ -159,7 +159,7 @@ public class GuiBuilder {
 
         void onClick(InventoryClickEvent event) {
             event.setCancelled(true);
-            if (lock) {
+            if (locked) {
                 return;
             }
             int slot = event.getRawSlot();
@@ -173,6 +173,7 @@ public class GuiBuilder {
         }
 
         void onClose(InventoryCloseEvent e) {
+            closed = true;
             if (close != null) {
                 close.accept(e);
             }
@@ -200,6 +201,14 @@ public class GuiBuilder {
 
         protected void unlock() {
             context.unlock();
+        }
+
+        protected boolean isLocked() {
+            return context.locked;
+        }
+
+        protected boolean isClosed() {
+            return context.closed;
         }
 
         protected void update(Player player) {
