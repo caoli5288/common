@@ -38,3 +38,18 @@ Types.desc(Foo.class).map("run", Closeable.class, "close")
 Types.asType(foo, Closeable.class).close()// I'm running
 
 ```
+
+## Compiled PlaceholderAPI string
+
+10x faster than `PlaceholderAPI.setPlaceholder(Player, String)`
+
+### Examples
+
+```groovy
+import com.mengcraft.util.CompiledStr
+import org.bukkit.Bukkit
+
+def compiled = new CompiledStr("My name is %player_name%")
+
+println compiled.apply(Bukkit.getPlayerExact("HIM")) // My name is HIM
+```
