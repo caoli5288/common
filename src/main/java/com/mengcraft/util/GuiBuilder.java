@@ -1,9 +1,13 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -12,29 +16,31 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class GuiBuilder {
 
-    public static final Button EMPTY_BUTTON = new Button(new ItemStack(0));
+    public static final Button EMPTY_BUTTON = new Button(new ItemStack(Material.AIR));
     private static Plugin plugin;
 
-    private final Map<String, Supplier<Button>> buttons = new HashMap<>();
-    private String name;
-    private String contents;
+    private final Map<Character, Supplier<Button>> buttons = Maps.newHashMap();
+    private String name = "";
+    private char[] contents;
     private Consumer<InventoryClickEvent> onClick;
     private Consumer<InventoryCloseEvent> onClose;
 
     public GuiBuilder name(String name) {
+        checkNotNull(name, "name must not be null");
         this.name = name;
         return this;
     }
@@ -55,13 +61,13 @@ public class GuiBuilder {
             checkArgument(content.length() == 9, "content length must equals 9");
             b.append(content);
         }
-        this.contents = b.toString();
+        this.contents = b.toString().toCharArray();
         return this;
     }
 
     public GuiBuilder contents(String contents) {
         checkArgument(contents.length() % 9 == 0, "content length must be multiple of 9");
-        this.contents = contents;
+        this.contents = contents.toCharArray();
         return this;
     }
 
@@ -71,6 +77,15 @@ public class GuiBuilder {
 
     public GuiBuilder setSymbol(String symbol, Supplier<Button> factory) {
         checkArgument(symbol.length() == 1, "symbol must single char");
+        buttons.put(symbol.charAt(0), factory);
+        return this;
+    }
+
+    public GuiBuilder symbol(Character symbol, Button binding) {
+        return symbol(symbol, () -> binding);
+    }
+
+    public GuiBuilder symbol(Character symbol, Supplier<Button> factory) {
         buttons.put(symbol, factory);
         return this;
     }
@@ -79,7 +94,7 @@ public class GuiBuilder {
         Context gui = new Context(name);
         gui.click = onClick;
         gui.close = onClose;
-        for (String symbol : contents.split("")) {
+        for (Character symbol : contents) {
             if (buttons.containsKey(symbol)) {
                 gui.buttons.add(buttons.get(symbol).get());
             } else {
@@ -99,14 +114,23 @@ public class GuiBuilder {
         Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
     }
 
-    @RequiredArgsConstructor
+    public static boolean isEnabled() {
+        return plugin != null;
+    }
+
+    @AllArgsConstructor
     public static class Button {
 
         private final ItemStack icon;
-        private final Consumer<InventoryClickEvent> onClick;
+        private Consumer<InventoryClickEvent> onClick;
 
         public Button(ItemStack icon) {
             this(icon, null);
+        }
+
+        public Button onClick(Consumer<InventoryClickEvent> onClick) {
+            this.onClick = onClick;
+            return this;
         }
 
         void onClick(InventoryClickEvent e) {
@@ -193,6 +217,28 @@ public class GuiBuilder {
                 context = builder.build();
             }
             player.openInventory(context.getInventory());
+        }
+
+        protected Button emptyButton() {
+            return EMPTY_BUTTON;
+        }
+
+        protected Button button(Material type, String name) {
+            ItemStack item = new ItemStack(type);
+            if (!StringUtils.isEmpty(name)) {
+                ItemMeta meta = item.getItemMeta();
+                meta.setDisplayName(name);
+                item.setItemMeta(meta);
+            }
+            return button(item);
+        }
+
+        protected Button button(ItemStack item) {
+            return new Button(item);
+        }
+
+        protected Button button(ItemStack item, Consumer<InventoryClickEvent> callback) {
+            return new Button(item, callback);
         }
 
         protected void lock() {
