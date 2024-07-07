@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import sun.misc.Unsafe;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.LambdaMetafactory;
@@ -29,9 +30,12 @@ public class Types {
 
     @SneakyThrows
     static MethodHandles.Lookup lookup() {
-        Field f = MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP");
-        f.setAccessible(true);
-        return (MethodHandles.Lookup) f.get(MethodHandles.Lookup.class);
+        Field field = Unsafe.class.getDeclaredField("theUnsafe");
+        field.setAccessible(true);
+        Unsafe unsafe = (Unsafe) field.get(Unsafe.class);
+        field = MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP");
+        long offset = unsafe.staticFieldOffset(field);
+        return (MethodHandles.Lookup) unsafe.getObject(MethodHandles.Lookup.class, offset);
     }
 
     Types() {

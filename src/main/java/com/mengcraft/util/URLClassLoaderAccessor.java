@@ -1,18 +1,29 @@
 package com.mengcraft.util;
 
+import lombok.SneakyThrows;
+import org.apache.commons.lang.math.NumberUtils;
 import sun.misc.Unsafe;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.Collection;
 
 public class URLClassLoaderAccessor {
 
-    private static final IAccessor ACCESSOR = Impl.HANDLE == null ?
-            new Impl2() :
-            new Impl();
+    private static final IAccessor ACCESSOR;
+
+    static {
+        float jvm = NumberUtils.toFloat(System.getProperty("java.specification.version", "99.0"));
+        if (jvm >= 1.7) {
+            ACCESSOR = new Impl2();
+        } else {
+            ACCESSOR = new Impl();
+        }
+    }
 
     public static void addUrl(URLClassLoader cl, URL url) {
         ACCESSOR.addUrl(cl, url);
@@ -50,36 +61,27 @@ public class URLClassLoaderAccessor {
 
     private static class Impl2 implements IAccessor {
 
-        private static final Unsafe HANDLE = setup();
+        private final MethodHandle handle = load();
 
-        private static Unsafe setup() {
-            try {
-                Field f = Unsafe.class.getDeclaredField("theUnsafe");
-                f.setAccessible(true);
-                return (Unsafe) f.get(null);
-            } catch (Exception e) {
-                // noop
-            }
-            return null;
+        @SneakyThrows
+        private MethodHandle load() {
+            Field field = Unsafe.class.getDeclaredField("theUnsafe");
+            field.setAccessible(true);
+            Unsafe unsafe = (Unsafe) field.get(Unsafe.class);
+            field = MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP");
+            long offset = unsafe.staticFieldOffset(field);
+            MethodHandles.Lookup lookup = (MethodHandles.Lookup) unsafe.getObject(MethodHandles.Lookup.class, offset);
+            lookup = lookup.in(URLClassLoader.class);
+            return lookup.findVirtual(URLClassLoader.class, "addURL", MethodType.methodType(void.class, URL.class));
         }
 
         @Override
         public void addUrl(URLClassLoader cl, URL url) {
             try {
-                Object ucp = lookup(URLClassLoader.class, cl, "ucp");
-                Collection<URL> unopenedUrls = (Collection<URL>) lookup(ucp.getClass(), ucp, "unopenedUrls");
-                Collection<URL> path = (Collection<URL>) lookup(ucp.getClass(), ucp, "path");
-                unopenedUrls.add(url);
-                path.add(url);
-            } catch (Exception e) {
+                handle.invokeExact(cl, url);
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
-        }
-
-        private static Object lookup(Class<?> cls, Object obj, String fieldName) throws NoSuchFieldException {
-            Field field = cls.getDeclaredField(fieldName);
-            long offset = HANDLE.objectFieldOffset(field);
-            return HANDLE.getObject(obj, offset);
         }
     }
 }
