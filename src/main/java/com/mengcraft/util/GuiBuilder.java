@@ -22,7 +22,6 @@ import org.bukkit.plugin.Plugin;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -177,12 +176,15 @@ public class GuiBuilder {
 
         void fill() {
             int size = buttons.size();
-            for (int i = 0; i < size; i++) {
-                ItemStack old = inventory.getItem(i);
-                ItemStack item = buttons.get(i).icon;
-                if (!Objects.equals(old, item)) {
-                    inventory.setItem(i, item);
-                }
+            for (int slot = 0; slot < size; slot++) {
+//                ItemStack old = inventory.getItem(i);
+//                ItemStack item = buttons.get(i).icon;
+//                if (!Objects.equals(old, item)) {
+//                    inventory.setItem(i, item);
+//                }
+                // Comp and set items is meaningless because of server just send all items in cancelled clicks
+                // Simply set item without comp
+                inventory.setItem(slot, buttons.get(slot).icon);
             }
         }
 
