@@ -22,6 +22,7 @@ import org.bukkit.plugin.Plugin;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -169,15 +170,19 @@ public class GuiBuilder {
         public Inventory getInventory() {
             if (inventory == null) {
                 inventory = Bukkit.createInventory(this, buttons.size(), name);
-                fills();
+                fill();
             }
             return inventory;
         }
 
-        void fills() {
+        void fill() {
             int size = buttons.size();
             for (int i = 0; i < size; i++) {
-                inventory.setItem(i, buttons.get(i).icon);
+                ItemStack old = inventory.getItem(i);
+                ItemStack item = buttons.get(i).icon;
+                if (!Objects.equals(old, item)) {
+                    inventory.setItem(i, item);
+                }
             }
         }
 
@@ -263,7 +268,7 @@ public class GuiBuilder {
             setup(player, builder);
             Context from = builder.build();
             context.copy(from);
-            context.fills();
+            context.fill();
         }
 
         protected void clear() {
