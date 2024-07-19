@@ -1,6 +1,5 @@
 package com.mengcraft.util;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -11,7 +10,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -27,8 +25,7 @@ public class CommandRouter {
     }
 
     public boolean execute(CommandSender console, String[] commands) {
-        CallInfo info = new CallInfo();
-        info.addAll(commands);
+        CallInfo info = new CallInfo(commands);
         return executeNode(console, info);
     }
 
@@ -63,8 +60,7 @@ public class CommandRouter {
     }
 
     public List<String> complete(CommandSender console, String[] commands) {
-        CallInfo info = new CallInfo();
-        info.addAll(commands);
+        CallInfo info = new CallInfo(commands);
         return completeNode(console, info);
     }
 
@@ -141,34 +137,35 @@ public class CommandRouter {
     public static class CallInfo {
 
         private final Map<Object, Object> options = Maps.newHashMap();
-        private final Queue<String> commands = Lists.newLinkedList();
+        private final String[] commands;
+        private int pollIndex;
         @Getter
         private String node;
         @Getter
         private String nextNode;
 
-        private void addAll(String[] list) {
-            Collections.addAll(commands, list);
+        CallInfo(String[] commands) {
+            this.commands = commands;
         }
 
         private String pollNode() {
             node = nextNode;
-            if (commands.isEmpty()) {
+            if (empty()) {
                 return nextNode = null;
             }
-            return nextNode = commands.poll();
+            return nextNode = commands[pollIndex++];
         }
 
         public boolean empty() {
-            return commands.isEmpty();
+            return pollIndex >= commands.length;
         }
 
         public void bakeAllNext() {
-            if (!commands.isEmpty()) {
+            if (!empty()) {
                 StringBuilder line = new StringBuilder(nextNode);
-                while (!commands.isEmpty()) {
+                while (!empty()) {
                     line.append(' ');
-                    line.append(commands.poll());
+                    line.append(commands[pollIndex++]);
                 }
                 nextNode = line.toString();
             }
