@@ -149,14 +149,35 @@ public class GuiBuilder {
         private Consumer<InventoryCloseEvent> close;
         private Consumer<InventoryClickEvent> click;
         private boolean locked;
+        private long lockMillis;
         private boolean closed;
 
         public void lock() {
             locked = true;
         }
 
+        public void lock(long millis) {
+            locked = true;
+            lockMillis = System.currentTimeMillis() + millis;
+        }
+
         public void unlock() {
             locked = false;
+        }
+
+        public boolean locked() {
+            if (locked) {
+                if (lockMillis == 0) {
+                    return true;
+                }
+                long millis = System.currentTimeMillis();
+                if (millis < lockMillis) {
+                    return true;
+                }
+                lockMillis = 0;
+                locked = false;
+            }
+            return false;
         }
 
         void copy(Context from) {
@@ -190,7 +211,7 @@ public class GuiBuilder {
 
         void onClick(InventoryClickEvent event) {
             event.setCancelled(true);
-            if (locked) {
+            if (locked()) {
                 return;
             }
             int slot = event.getRawSlot();
@@ -252,12 +273,16 @@ public class GuiBuilder {
             context.lock();
         }
 
+        protected void lock(long millis) {
+            context.lock(millis);
+        }
+
         protected void unlock() {
             context.unlock();
         }
 
         protected boolean isLocked() {
-            return context.locked;
+            return context.locked();
         }
 
         protected boolean isClosed() {
