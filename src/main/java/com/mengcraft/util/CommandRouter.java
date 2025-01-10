@@ -1,5 +1,6 @@
 package com.mengcraft.util;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -31,8 +32,8 @@ public class CommandRouter {
 
     private boolean executeNode(CommandSender console, CallInfo info) {
         // Example: give me apple
-        String pollNode = info.pollNode();
-        CommandRouter child = childMap.get(pollNode);
+        info.pollNode();
+        CommandRouter child = childMap.get(info.nextNode);
         if (child == null) {
             child = childMap.get("*");
         }
@@ -66,7 +67,8 @@ public class CommandRouter {
 
     private List<String> completeNode(CommandSender console, CallInfo info) {
         // Example: give me apple [amount]
-        String pollNode = info.pollNode();
+        info.pollNode();
+        String pollNode = info.nextNode;
         if (info.empty()) {
             List<String> list = completeAll(console, info);
             if (list == null) {
@@ -123,7 +125,13 @@ public class CommandRouter {
         return this;
     }
 
+    public CommandRouter child(String name) {
+        Preconditions.checkArgument(name.indexOf(' ') == -1, "Child must not contain space");
+        return childMap.computeIfAbsent(name, __ -> new CommandRouter());
+    }
+
     public CommandRouter child(String name, CommandRouter child) {
+        Preconditions.checkArgument(name.indexOf(' ') == -1, "Child must not contain space");
         childMap.put(name, child);
         return this;
     }
@@ -137,7 +145,7 @@ public class CommandRouter {
     public static class CallInfo {
 
         private final Map<Object, Object> options = Maps.newHashMap();
-        private final String[] commands;
+        private final @Getter String[] commands;
         private int pollIndex;
         @Getter
         private String node;
@@ -148,12 +156,13 @@ public class CommandRouter {
             this.commands = commands;
         }
 
-        private String pollNode() {
+        void pollNode() {
             node = nextNode;
             if (empty()) {
-                return nextNode = null;
+                nextNode = null;
+            } else {
+                nextNode = commands[pollIndex++];
             }
-            return nextNode = commands[pollIndex++];
         }
 
         public boolean empty() {
