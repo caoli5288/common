@@ -269,6 +269,14 @@ public class GuiBuilder {
             return new Button(item, callback);
         }
 
+        protected Gui setButton(int slot, Button button) {
+            Preconditions.checkNotNull(context, "Gui is not opened");
+            Preconditions.checkNotNull(context.inventory, "Gui is not opened");
+            context.buttons.set(slot, button);
+            context.inventory.setItem(slot, button.icon);
+            return this;
+        }
+
         protected void lock() {
             context.lock();
         }
