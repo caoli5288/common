@@ -1,193 +1,240 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import lombok.AccessLevel;
+import lombok.Data;
 import lombok.Getter;
-import org.bukkit.Bukkit;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 public class CommandRouter {
 
-    private final Map<String, CommandRouter> childMap = Maps.newHashMap();
-    private Callable<List<String>> completion;
-    private Callable<Boolean> execution;
+    private final String label;
+    private final boolean tag;
+    private Map<String, CommandRouter> routers;
+    private BiFunction<CommandSender, Context, List<String>> completion;
+    private BiFunction<CommandSender, Context, Boolean> execution;
+    private BiPredicate<CommandSender, Context> validation;
+    private List<CommandRouter> aliases;
 
-    @FunctionalInterface
-    public interface Callable<T> {
-        T call(CommandSender console, CallInfo info);
-    }
-
-    public boolean execute(CommandSender console, String[] commands) {
-        CallInfo info = new CallInfo(commands);
-        return executeNode(console, info);
-    }
-
-    private boolean executeNode(CommandSender console, CallInfo info) {
-        // Example: give me apple
-        info.pollNode();
-        CommandRouter child = childMap.get(info.nextNode);
-        if (child == null) {
-            child = childMap.get("*");
-        }
-        // execute self
-        if (child == null) {
-            return executeAll(console, info);
-        }
-        if (executeAll(console, info)) {
-            return child.executeNode(console, info);
-        }
-        return false;
-    }
-
-    /**
-     * @param console the console
-     * @param info    the command call info
-     * @return false only if the execution explicitly false, otherwise true
-     */
-    private boolean executeAll(CommandSender console, CallInfo info) {
-        if (execution == null) {
-            return true;
-        }
-        Boolean bool = execution.call(console, info);
-        return bool == null || bool;
+    public CommandRouter() {
+        this(null, false);
     }
 
     public List<String> complete(CommandSender console, String[] commands) {
-        CallInfo info = new CallInfo(commands);
-        return completeNode(console, info);
-    }
-
-    private List<String> completeNode(CommandSender console, CallInfo info) {
-        // Example: give me apple [amount]
-        info.pollNode();
-        String pollNode = info.nextNode;
-        if (info.empty()) {
-            List<String> list = completeAll(console, info);
-            if (list == null) {
-                if (!childMap.isEmpty()) {
-                    list = childMap.keySet()
-                            .stream()
-                            .filter(it -> it.startsWith(pollNode))
-                            .filter(it -> !it.equals("*"))
-                            .collect(Collectors.toList());
-                    if (childMap.containsKey("*")) {
-                        // guessing * means players
-                        list.addAll(filerOnlinePlayers(pollNode));
-                    }
-                }
-            }
-            return list;
-        }
-        CommandRouter child = childMap.get(pollNode);
-        if (child == null) {
-            child = childMap.get("*");
-        }
-        // not empty but no child node
-        if (child == null) {
+        Context context = new Context(Mode.COMPLETION, commands);
+        CommandRouter look = look(console, context);
+        if (look == null) {
             return Collections.emptyList();
         }
-        // Optional
-        completeAll(console, info);
-        // Call child
-        return child.completeNode(console, info);
+        return look.complete(console, context);
     }
 
-    public static Collection<String> filerOnlinePlayers(String filter) {
-        return Bukkit.getOnlinePlayers()
-                .stream()
-                .map(Player::getName)
-                .filter(it -> it.startsWith(filter))
-                .collect(Collectors.toSet());
+    private CommandRouter look(CommandSender console, Context context) {
+        CommandRouter let = this;
+        int length = context.getCommands().length;
+        for (int i = 0; i < length; i++) {
+            context.index = i;
+            CommandRouter look = let.lookup(console, context);
+            if (look == null) {
+                return let;
+            }
+            let = look;
+        }
+        return let;
     }
 
-    private List<String> completeAll(CommandSender console, CallInfo info) {
+    public boolean execute(CommandSender console, String[] commands) {
+        Context context = new Context(Mode.EXECUTION, commands);
+        CommandRouter look = look(console, context);
+        if (look == null) {
+            return false;
+        }
+        return look.execute(console, context);
+    }
+
+    private boolean execute(CommandSender console, Context context) {
+        if (execution == null) {
+            return false;
+        }
+        return execution.apply(console, context);
+    }
+
+    private List<String> complete(CommandSender console, Context context) {
         if (completion == null) {
+            return routers.values()
+                    .stream()
+                    .filter(lt -> !lt.tag)
+                    .map(lt -> lt.label)
+                    .collect(Collectors.toList());
+        }
+        return completion.apply(console, context);
+    }
+
+    private CommandRouter lookup(CommandSender console, Context context) {
+        String seg = context.poll();
+//        if (seg.isEmpty()) {
+//            return this;
+//        }
+        if (routers == null) {
             return null;
         }
-        return completion.call(console, info);
-    }
-
-    public CommandRouter execution(Callable<Boolean> execution) {
-        this.execution = execution;
-        return this;
-    }
-
-    public CommandRouter completion(Callable<List<String>> completion) {
-        this.completion = completion;
-        return this;
-    }
-
-    public CommandRouter child(String name) {
-        Preconditions.checkArgument(name.indexOf(' ') == -1, "Child must not contain space");
-        return childMap.computeIfAbsent(name, __ -> new CommandRouter());
-    }
-
-    public CommandRouter child(String name, CommandRouter child) {
-        Preconditions.checkArgument(name.indexOf(' ') == -1, "Child must not contain space");
-        childMap.put(name, child);
-        return this;
-    }
-
-    public CommandRouter child(String name, Consumer<CommandRouter> let) {
-        CommandRouter child = new CommandRouter();
-        let.accept(child);
-        return child(name, child);
-    }
-
-    public static class CallInfo {
-
-        private final Map<Object, Object> options = Maps.newHashMap();
-        private final @Getter String[] commands;
-        private int pollIndex;
-        @Getter
-        private String node;
-        @Getter
-        private String nextNode;
-
-        CallInfo(String[] commands) {
-            this.commands = commands;
+        CommandRouter look = routers.get(seg);
+        if (look != null && !look.tag) {
+            return look;
         }
-
-        void pollNode() {
-            node = nextNode;
-            if (empty()) {
-                nextNode = null;
-            } else {
-                nextNode = commands[pollIndex++];
-            }
-        }
-
-        public boolean empty() {
-            return pollIndex >= commands.length;
-        }
-
-        public void bakeAllNext() {
-            if (!empty()) {
-                StringBuilder line = new StringBuilder(nextNode);
-                while (!empty()) {
-                    line.append(' ');
-                    line.append(commands[pollIndex++]);
+        for (CommandRouter value : routers.values()) {
+            if (value.tag) {
+                context.tags.put(value.label, seg);
+                CommandRouter valid = value.validate(console, context);
+                if (valid != null) {
+                    return valid;
                 }
-                nextNode = line.toString();
+                context.tags.remove(value.label);
             }
         }
+        return null;
+    }
 
-        @SuppressWarnings("all")
-        public <T> T option(Object key) {
-            return (T) options.get(key);
+    private CommandRouter validate(CommandSender console, Context context) {
+        if (validation == null || validation.test(console, context)) {
+            return this;
+        }
+        if (aliases != null) {
+            for (CommandRouter alias : aliases) {
+                CommandRouter valid = alias.validate(console, context);
+                if (valid != null) {
+                    return valid;
+                }
+            }
+        }
+        return null;
+    }
+
+    public CommandRouter addDefined(String define, Consumer<Definition> callback) {
+        LinkedList<String> linked = Lists.newLinkedList();
+        Collections.addAll(linked, StringUtils.split(define, ' '));
+        Definition definition = loadDefinition(linked);
+        callback.accept(definition);
+        CommandRouter seg = this;
+        for (CommandRouter line : definition.list) {
+            seg = addDefinition(seg, line);
+        }
+        return this;
+    }
+
+    private static CommandRouter addDefinition(CommandRouter seg, CommandRouter line) {
+        // fast path
+        if (seg.routers == null) {
+            seg.routers = Maps.newHashMap();
+            seg.routers.put(line.label, line);
+            return line;
+        }
+        // exists
+        if (seg.routers.containsKey(line.label)) {
+            CommandRouter old = seg.routers.get(line.label);
+            Preconditions.checkState(old.tag == line.tag);
+            if (old.tag) {
+                old.alias(line);
+            }
+            return old;
+        }
+        // not exists
+        seg.routers.put(line.label, line);
+        return line;
+    }
+
+    private void alias(CommandRouter alias) {
+        if (aliases == null) {
+            aliases = Lists.newArrayList();
+        }
+        if (routers == null) {
+            routers = Maps.newHashMap();
+        }
+        alias.routers = routers;// Merged
+        aliases.add(alias);
+    }
+
+    private void apply(CommandRouter line) {
+
+    }
+
+    private Definition loadDefinition(LinkedList<String> linked) {
+        Definition definition = new Definition();
+        while (!linked.isEmpty()) {
+            String label = linked.poll();
+            boolean tagged = false;
+            if (label.charAt(0) == '$') {
+                label = label.substring(1);
+                tagged = true;
+            }
+            CommandRouter let = new CommandRouter(label, tagged);
+            definition.list.add(let);
+            if (tagged) {
+                definition.tags.put(label, let);
+            }
+        }
+        return definition;
+    }
+
+    public static class Definition {
+
+        private final List<CommandRouter> list = Lists.newArrayList();
+        private final Map<String, CommandRouter> tags = Maps.newHashMap();
+
+        public Definition completion(String tag, BiFunction<CommandSender, Context, List<String>> completion) {
+            tags.get(tag).completion = completion;
+            return this;
         }
 
-        @SuppressWarnings("all")
-        public <T> T option(Object key, Object value) {
-            return (T) options.put(key, value);
+        public Definition validation(String tag, BiPredicate<CommandSender, Context> validation) {
+            tags.get(tag).validation = validation;
+            return this;
+        }
+
+        public Definition execution(BiFunction<CommandSender, Context, Boolean> execution) {
+            list.get(list.size() - 1).execution = execution;
+            return this;
+        }
+    }
+
+    public enum Mode {
+        COMPLETION,
+        EXECUTION;
+    }
+
+    @Data
+    public static class Context {
+
+        @Getter(AccessLevel.NONE)
+        private final Map<String, String> tags = Maps.newHashMap();
+        private final Mode mode;
+        private final String[] commands;
+        private int index;
+
+        public String tag(String tag) {
+            return tags.get(tag);
+        }
+
+        public boolean tail() {
+            return index == commands.length - 1;
+        }
+
+        public String poll() {
+            return commands[index];
         }
     }
 }
