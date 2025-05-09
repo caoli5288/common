@@ -75,6 +75,9 @@ public class CommandRouter {
 
     private List<String> complete(CommandSender console, Context context) {
         if (completion == null) {
+            if (routers == null || routers.isEmpty()) {
+                return Collections.emptyList();
+            }
             return routers.values()
                     .stream()
                     .filter(lt -> !lt.tag)
