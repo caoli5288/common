@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
@@ -13,13 +14,16 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -30,6 +34,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class GuiBuilder {
 
+    public static final int INVENTORY_MAX_SIZE = 54;
+    public static final int BAG_MAX_SIZE = 36;
     public static final Button EMPTY_BUTTON = new Button(new ItemStack(Material.AIR));
     private static Plugin plugin;
 
@@ -108,7 +114,7 @@ public class GuiBuilder {
         return new GuiBuilder();
     }
 
-    public static void setup(Plugin plugin) {
+    public static void enable(Plugin plugin) {
         Preconditions.checkState(GuiBuilder.plugin == null);
         GuiBuilder.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
@@ -146,11 +152,13 @@ public class GuiBuilder {
         private final String name;
         private List<Button> buttons = new ArrayList<>();
         private Inventory inventory;
+        private SelfContents selfContents;
         private Consumer<InventoryCloseEvent> close;
         private Consumer<InventoryClickEvent> click;
+        private boolean clicking;
         private boolean locked;
         private long lockMillis;
-        private boolean closed;
+        private boolean opened;
 
         public void lock() {
             locked = true;
@@ -189,13 +197,19 @@ public class GuiBuilder {
         @Override
         public Inventory getInventory() {
             if (inventory == null) {
-                inventory = Bukkit.createInventory(this, buttons.size(), name);
-                fill();
+                int bSize = buttons.size();
+                if (bSize > INVENTORY_MAX_SIZE) {
+                    inventory = Bukkit.createInventory(this, INVENTORY_MAX_SIZE, name);
+                    selfContents = new SelfContents();
+                } else {
+                    inventory = Bukkit.createInventory(this, bSize, name);
+                }
+                fillAll();
             }
             return inventory;
         }
 
-        void fill() {
+        void fillAll() {
             int size = buttons.size();
             for (int slot = 0; slot < size; slot++) {
 //                ItemStack old = inventory.getItem(i);
@@ -205,7 +219,15 @@ public class GuiBuilder {
 //                }
                 // Comp and set items is meaningless because of server just send all items in cancelled clicks
                 // Simply set item without comp
+                fill(slot);
+            }
+        }
+
+        void fill(int slot) {
+            if (slot < INVENTORY_MAX_SIZE) {
                 inventory.setItem(slot, buttons.get(slot).icon);
+            } else {
+                selfContents.setItem(slot - INVENTORY_MAX_SIZE, buttons.get(slot).icon);
             }
         }
 
@@ -219,15 +241,32 @@ public class GuiBuilder {
                 if (slot < buttons.size()) {
                     buttons.get(slot).onClick(event);
                 } else if (click != null) {
-                    click.accept(event);
+                    try {
+                        clicking = true;
+                        click.accept(event);
+                    } finally {
+                        clicking = false;
+                    }
                 }
             }
         }
 
         void onClose(InventoryCloseEvent e) {
-            closed = true;
+            opened = false;
+            if (selfContents != null) {
+                e.getPlayer().getInventory().setStorageContents(selfContents.getOldItems());
+            }
             if (close != null) {
                 close.accept(e);
+            }
+        }
+
+        void onOpen(InventoryOpenEvent event) {
+            opened = true;
+            if (selfContents != null) {
+                PlayerInventory self = event.getPlayer().getInventory();
+                selfContents.setOldItems(self.getStorageContents());
+                self.setStorageContents(selfContents.getItems());
             }
         }
     }
@@ -236,12 +275,12 @@ public class GuiBuilder {
 
         protected Context context;
 
-        protected abstract void setup(Player player, GuiBuilder builder);
+        protected abstract void onBuild(Player player, GuiBuilder builder);
 
         public void open(Player player) {
             if (context == null) {
                 GuiBuilder builder = builder();
-                setup(player, builder);
+                onBuild(player, builder);
                 context = builder.build();
             }
             player.openInventory(context.getInventory());
@@ -251,11 +290,15 @@ public class GuiBuilder {
             return EMPTY_BUTTON;
         }
 
-        protected Button button(Material type, String name) {
+        protected Button button(Material type, String lines) {
             ItemStack item = new ItemStack(type);
-            if (!StringUtils.isEmpty(name)) {
+            if (!StringUtils.isEmpty(lines)) {
                 ItemMeta meta = item.getItemMeta();
-                meta.setDisplayName(name);
+                String[] split = StringUtils.split(lines, '\n');
+                meta.setDisplayName(split[0]);
+                if (split.length > 1) {
+                    meta.setLore(Arrays.asList(Arrays.copyOfRange(split, 1, split.length)));
+                }
                 item.setItemMeta(meta);
             }
             return button(item);
@@ -267,14 +310,6 @@ public class GuiBuilder {
 
         protected Button button(ItemStack item, Consumer<InventoryClickEvent> callback) {
             return new Button(item, callback);
-        }
-
-        protected Gui setButton(int slot, Button button) {
-            Preconditions.checkNotNull(context, "Gui is not opened");
-            Preconditions.checkNotNull(context.inventory, "Gui is not opened");
-            context.buttons.set(slot, button);
-            context.inventory.setItem(slot, button.icon);
-            return this;
         }
 
         protected void lock() {
@@ -294,20 +329,48 @@ public class GuiBuilder {
         }
 
         protected boolean isClosed() {
-            return context.closed;
+            return !context.opened;
         }
 
-        protected void update(Player player) {
+        protected void refill(Player player) {
+            reload(player);
+            context.fillAll();
+        }
+
+        protected void refill(Player player, int slot) {
+            reload(player);
+            context.fill(slot);
+        }
+
+        protected void reload(Player player) {
             Preconditions.checkNotNull(context);
             GuiBuilder builder = builder();
-            setup(player, builder);
+            onBuild(player, builder);
             Context from = builder.build();
             context.copy(from);
-            context.fill();
         }
 
         protected void clear() {
             context = null;
+        }
+
+        protected void close(Player player) {
+            if (context.clicking) {
+                Bukkit.getScheduler().runTask(plugin, player::closeInventory);
+            } else {
+                player.closeInventory();
+            }
+        }
+    }
+
+    @Data
+    static class SelfContents {
+
+        private final ItemStack[] items = new ItemStack[BAG_MAX_SIZE];
+        private ItemStack[] oldItems;
+
+        public void setItem(int slot, ItemStack item) {
+            items[slot] = item;
         }
     }
 
@@ -331,6 +394,17 @@ public class GuiBuilder {
                 InventoryHolder gui = inv.getHolder();
                 if (gui instanceof Context) {
                     ((Context) gui).onClose(event);
+                }
+            }
+        }
+
+        @EventHandler
+        public void on(InventoryOpenEvent event) {
+            Inventory inv = event.getInventory();
+            if (inv != null) {
+                InventoryHolder gui = inv.getHolder();
+                if (gui instanceof Context) {
+                    ((Context) gui).onOpen(event);
                 }
             }
         }
