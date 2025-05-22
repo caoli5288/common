@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -264,9 +266,7 @@ public class GuiBuilder {
         void onOpen(InventoryOpenEvent event) {
             opened = true;
             if (selfContents != null) {
-                PlayerInventory self = event.getPlayer().getInventory();
-                selfContents.setOldItems(self.getStorageContents());
-                self.setStorageContents(selfContents.getItems());
+                SelfContents.setContents(event.getPlayer(), selfContents);
             }
         }
     }
@@ -335,11 +335,16 @@ public class GuiBuilder {
         protected void refill(Player player) {
             reload(player);
             context.fillAll();
+            Optional.ofNullable(context.selfContents)
+                    .ifPresent(l -> SelfContents.setContents(player, l));
         }
 
         protected void refill(Player player, int slot) {
             reload(player);
             context.fill(slot);
+            if (slot >= INVENTORY_MAX_SIZE) {
+                SelfContents.setContents(player, context.selfContents);
+            }
         }
 
         protected void reload(Player player) {
@@ -370,7 +375,15 @@ public class GuiBuilder {
         private ItemStack[] oldItems;
 
         public void setItem(int slot, ItemStack item) {
-            items[slot] = item;
+            items[slot < 27 ? slot + 9 : slot - 27] = item;
+        }
+
+        static void setContents(HumanEntity entity, SelfContents contents) {
+            PlayerInventory content = entity.getInventory();
+            if (contents.oldItems == null) {
+                contents.oldItems = content.getStorageContents();
+            }
+            content.setStorageContents(contents.items);
         }
     }
 
