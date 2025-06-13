@@ -1,6 +1,7 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -23,11 +24,9 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -100,8 +99,15 @@ public class GuiBuilder {
 
     public Context build() {
         Context gui = new Context(name);
+        build(gui);
+        return gui;
+    }
+
+    void build(Context gui) {
+        gui.builder = this;
         gui.click = onClick;
         gui.close = onClose;
+        gui.buttons = Lists.newArrayList();
         for (Character symbol : contents) {
             if (buttons.containsKey(symbol)) {
                 gui.buttons.add(buttons.get(symbol).get());
@@ -109,7 +115,6 @@ public class GuiBuilder {
                 gui.buttons.add(EMPTY_BUTTON);
             }
         }
-        return gui;
     }
 
     public static GuiBuilder builder() {
@@ -152,7 +157,8 @@ public class GuiBuilder {
     public static class Context implements InventoryHolder {
 
         private final String name;
-        private List<Button> buttons = new ArrayList<>();
+        private GuiBuilder builder;
+        private List<Button> buttons;
         private Inventory inventory;
         private SelfContents selfContents;
         private Consumer<InventoryCloseEvent> close;
@@ -190,11 +196,11 @@ public class GuiBuilder {
             return false;
         }
 
-        void copy(Context from) {
-            buttons = from.buttons;
-            click = from.click;
-            close = from.close;
-        }
+//        void copy(Context from) {
+//            buttons = from.buttons;
+//            click = from.click;
+//            close = from.close;
+//        }
 
         @Override
         public Inventory getInventory() {
@@ -269,6 +275,16 @@ public class GuiBuilder {
                 SelfContents.setContents(event.getPlayer(), selfContents);
             }
         }
+
+        void refill(int slot) {
+            char content = builder.contents[slot];
+            Supplier<Button> supplier = builder.buttons.get(content);
+            Button fillButton = supplier == null ?
+                    EMPTY_BUTTON :
+                    supplier.get();
+            buttons.set(slot, fillButton);
+            fill(slot);
+        }
     }
 
     public static abstract class Gui {
@@ -335,24 +351,17 @@ public class GuiBuilder {
         protected void refill(Player player) {
             reload(player);
             context.fillAll();
-            Optional.ofNullable(context.selfContents)
-                    .ifPresent(l -> SelfContents.setContents(player, l));
         }
 
-        protected void refill(Player player, int slot) {
-            reload(player);
-            context.fill(slot);
-            if (slot >= INVENTORY_MAX_SIZE) {
-                SelfContents.setContents(player, context.selfContents);
-            }
+        protected void refill(int slot) {
+            context.refill(slot);
         }
 
         protected void reload(Player player) {
             Preconditions.checkNotNull(context);
             GuiBuilder builder = builder();
             onBuild(player, builder);
-            Context from = builder.build();
-            context.copy(from);
+            builder.build(context);
         }
 
         protected void clear() {
@@ -373,12 +382,20 @@ public class GuiBuilder {
 
         private final ItemStack[] items = new ItemStack[BAG_MAX_SIZE];
         private ItemStack[] oldItems;
+        private HumanEntity entity;
 
         public void setItem(int slot, ItemStack item) {
-            items[slot < 27 ? slot + 9 : slot - 27] = item;
+            int vSlot = slot < 27 ?
+                    slot + 9 :
+                    slot - 27;
+            items[vSlot] = item;
+            if (entity != null) {
+                entity.getInventory().setItem(vSlot, item);
+            }
         }
 
         static void setContents(HumanEntity entity, SelfContents contents) {
+            contents.entity = entity;
             PlayerInventory content = entity.getInventory();
             if (contents.oldItems == null) {
                 contents.oldItems = content.getStorageContents();
