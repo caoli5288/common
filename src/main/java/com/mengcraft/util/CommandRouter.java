@@ -28,7 +28,6 @@ public class CommandRouter {
     private BiFunction<CommandSender, Context, List<String>> completion;
     private BiFunction<CommandSender, Context, Boolean> execution;
     private BiPredicate<CommandSender, Context> validation;
-    private List<CommandRouter> aliases;
 
     public CommandRouter() {
         this(null, false);
@@ -102,29 +101,18 @@ public class CommandRouter {
         for (CommandRouter value : routers.values()) {
             if (value.tag) {
                 context.tags.put(value.label, seg);
-                CommandRouter valid = value.validate(console, context);
-                if (valid != null) {
-                    return valid;
+                if (value.validate(console, context)) {
+                    return value;
                 }
+                // Rollback tagged value
                 context.tags.remove(value.label);
             }
         }
         return null;
     }
 
-    private CommandRouter validate(CommandSender console, Context context) {
-        if (validation == null || validation.test(console, context)) {
-            return this;
-        }
-        if (aliases != null) {
-            for (CommandRouter alias : aliases) {
-                CommandRouter valid = alias.validate(console, context);
-                if (valid != null) {
-                    return valid;
-                }
-            }
-        }
-        return null;
+    private boolean validate(CommandSender console, Context context) {
+        return validation == null || validation.test(console, context);
     }
 
     public CommandRouter addDefined(String define, Consumer<Definition> callback) {
@@ -150,25 +138,11 @@ public class CommandRouter {
         if (seg.routers.containsKey(line.label)) {
             CommandRouter old = seg.routers.get(line.label);
             Preconditions.checkState(old.tag == line.tag);
-            if (old.tag) {
-                old.alias(line);
-            }
             return old;
         }
         // not exists
         seg.routers.put(line.label, line);
         return line;
-    }
-
-    private void alias(CommandRouter alias) {
-        if (aliases == null) {
-            aliases = Lists.newArrayList();
-        }
-        if (routers == null) {
-            routers = Maps.newHashMap();
-        }
-        alias.routers = routers;// Merged
-        aliases.add(alias);
     }
 
     private void apply(CommandRouter line) {
@@ -210,6 +184,11 @@ public class CommandRouter {
 
         public Definition execution(BiFunction<CommandSender, Context, Boolean> execution) {
             list.get(list.size() - 1).execution = execution;
+            return this;
+        }
+
+        public Definition execution(String tag, BiFunction<CommandSender, Context, Boolean> execution) {
+            tags.get(tag).execution = execution;
             return this;
         }
     }
