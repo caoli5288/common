@@ -37,7 +37,7 @@ public class TypesTest {
     @Test
     public void testAsLambda() {
         Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
-        Types.asLambda(method, Consumer.class).accept(new Bob());
+        Types.lambdaPrivileged(method, Consumer.class).accept(new Bob());
     }
 
     public interface I1 {

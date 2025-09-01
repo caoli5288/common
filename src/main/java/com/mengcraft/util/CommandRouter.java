@@ -19,7 +19,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
 public class CommandRouter {
 
     private final String label;
@@ -31,6 +30,11 @@ public class CommandRouter {
 
     public CommandRouter() {
         this(null, false);
+    }
+
+    private CommandRouter(String label, boolean tag) {
+        this.label = label;
+        this.tag = tag;
     }
 
     public List<String> complete(CommandSender console, String[] commands) {
@@ -88,9 +92,6 @@ public class CommandRouter {
 
     private CommandRouter lookup(CommandSender console, Context context) {
         String seg = context.poll();
-//        if (seg.isEmpty()) {
-//            return this;
-//        }
         if (routers == null) {
             return null;
         }
@@ -143,10 +144,6 @@ public class CommandRouter {
         // not exists
         seg.routers.put(line.label, line);
         return line;
-    }
-
-    private void apply(CommandRouter line) {
-
     }
 
     private Definition loadDefinition(LinkedList<String> linked) {

@@ -28,6 +28,10 @@ public class Types {
     private static final Map<Class<?>, Desc> METHODS_DESCRIPTORS = new HashMap<>();
     private static final MethodHandles.Lookup LOOKUP = lookup();
 
+    public static MethodHandles.Lookup lookupPrivileged(Class<?> cls) {
+        return LOOKUP.in(cls);
+    }
+
     @SneakyThrows
     static MethodHandles.Lookup lookup() {
         Field field = Unsafe.class.getDeclaredField("theUnsafe");
@@ -78,12 +82,12 @@ public class Types {
     }
 
     @SneakyThrows
-    public static <T> T asLambda(Method method, Class<T> cls) {
+    public static <T> T lambdaPrivileged(Method method, Class<T> cls) {
         Preconditions.checkState(cls.isInterface());
         Method sam = sam(cls);
         Objects.requireNonNull(sam, "Class is not SAM class. " + cls);
         // Workaround for private accessor
-        MethodHandles.Lookup lookup = LOOKUP.in(method.getDeclaringClass());
+        MethodHandles.Lookup lookup = lookupPrivileged(method.getDeclaringClass());
         MethodHandle mh = lookup.unreflect(method);
         CallSite ct = LambdaMetafactory.metafactory(lookup,
                 sam.getName(),
