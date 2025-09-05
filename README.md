@@ -49,7 +49,7 @@ Types.asType(foo, Closeable.class).close()// I'm running
 import com.mengcraft.util.CompiledStr
 import org.bukkit.Bukkit
 
-def compiled = new CompiledStr("My name is %player_name%")
+def compiled = CompiledStr.compile("My name is %player_name%")
 
 println compiled.apply(Bukkit.getPlayerExact("HIM")) // My name is HIM
 ```

@@ -13,13 +13,21 @@ import java.util.regex.Pattern;
 
 public class CompiledStr implements Function<OfflinePlayer, String> {
 
-    public static final Pattern REGEX = Pattern.compile("%([^%_]+)_([^%]+)%");
-    private final List<Function<OfflinePlayer, String>> list = Lists.newArrayList();
     private final String template;
+    private List<Function<OfflinePlayer, String>> list;
 
-    public CompiledStr(String template) {
+    private CompiledStr(String template) {
         this.template = template;
-        compile();
+    }
+
+    public static CompiledStr compile(String text) {
+        return compile(Style.PERCENT, text);
+    }
+
+    public static CompiledStr compile(Style style, String text) {
+        CompiledStr let = new CompiledStr(text);
+        let.compile(style);
+        return let;
     }
 
     @Override
@@ -31,9 +39,10 @@ public class CompiledStr implements Function<OfflinePlayer, String> {
         return sb.toString();
     }
 
-    public void compile() {
+    private void compile(Style style) {
+        list = Lists.newArrayList();
         LocalExpansionManager lem = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager();
-        Matcher mat = REGEX.matcher(template);
+        Matcher mat = style.matcher(template);
         int seg = 0;
         while (mat.find()) {
             int f = mat.start();
@@ -52,6 +61,21 @@ public class CompiledStr implements Function<OfflinePlayer, String> {
         if (seg != template.length()) {
             String segment = template.substring(seg);
             list.add(__ -> segment);
+        }
+    }
+
+    public enum Style {
+        PERCENT(Pattern.compile("%([^%_]+)_([^%]+)%")),
+        DOLLAR(Pattern.compile("\\$\\{([^}_]+)_([^}]+)}"));
+
+        private final Pattern pattern;
+
+        Style(Pattern pattern) {
+            this.pattern = pattern;
+        }
+
+        public Matcher matcher(String template) {
+            return pattern.matcher(template);
         }
     }
 }
