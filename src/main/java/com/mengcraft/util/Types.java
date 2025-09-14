@@ -94,7 +94,7 @@ public class Types {
                 MethodType.methodType(cls),
                 MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
                 mh,
-                MethodType.methodType(sam.getReturnType(), mh.type().parameterArray()));
+                MethodType.methodType(method.getReturnType(), mh.type().parameterArray()));
         return (T) ct.getTarget().invoke();
     }
 
