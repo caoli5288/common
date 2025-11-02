@@ -124,7 +124,7 @@ public class GuiBuilder {
     public static void enable(Plugin plugin) {
         Preconditions.checkState(GuiBuilder.plugin == null);
         GuiBuilder.plugin = plugin;
-        Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
+        Bukkit.getPluginManager().registerEvents(new Events(), plugin);
     }
 
     public static boolean isEnabled() {
@@ -259,7 +259,7 @@ public class GuiBuilder {
             }
         }
 
-        void onClose(InventoryCloseEvent e) {
+        void closed(InventoryCloseEvent e) {
             opened = false;
             if (selfContents != null) {
                 e.getPlayer().getInventory().setStorageContents(selfContents.getOldItems());
@@ -269,7 +269,7 @@ public class GuiBuilder {
             }
         }
 
-        void onOpen(InventoryOpenEvent event) {
+        void opened(InventoryOpenEvent event) {
             opened = true;
             if (selfContents != null) {
                 SelfContents.setContents(event.getPlayer(), selfContents);
@@ -404,38 +404,29 @@ public class GuiBuilder {
         }
     }
 
-    public static class Listeners implements Listener {
+    public static class Events implements Listener {
 
         @EventHandler
-        public void on(InventoryClickEvent event) {
-            Inventory inv = event.getInventory();
-            if (inv != null) {
-                InventoryHolder gui = inv.getHolder();
-                if (gui instanceof Context) {
-                    ((Context) gui).onClick(event);
-                }
+        public void onInventoryClick(InventoryClickEvent event) {
+            InventoryHolder gui = event.getInventory().getHolder();// Use getHolder(false) if exists
+            if (gui instanceof Context) {
+                ((Context) gui).onClick(event);
             }
         }
 
         @EventHandler
-        public void on(InventoryCloseEvent event) {
-            Inventory inv = event.getInventory();
-            if (inv != null) {
-                InventoryHolder gui = inv.getHolder();
-                if (gui instanceof Context) {
-                    ((Context) gui).onClose(event);
-                }
+        public void onInventoryClose(InventoryCloseEvent event) {
+            InventoryHolder gui = event.getInventory().getHolder();
+            if (gui instanceof Context) {
+                ((Context) gui).closed(event);
             }
         }
 
         @EventHandler
-        public void on(InventoryOpenEvent event) {
-            Inventory inv = event.getInventory();
-            if (inv != null) {
-                InventoryHolder gui = inv.getHolder();
-                if (gui instanceof Context) {
-                    ((Context) gui).onOpen(event);
-                }
+        public void onInventoryOpen(InventoryOpenEvent event) {
+            InventoryHolder gui = event.getInventory().getHolder();
+            if (gui instanceof Context) {
+                ((Context) gui).opened(event);
             }
         }
     }
