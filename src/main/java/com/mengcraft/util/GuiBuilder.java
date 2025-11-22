@@ -5,7 +5,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
@@ -98,7 +97,9 @@ public class GuiBuilder {
     }
 
     public Context build() {
-        Context gui = new Context(name);
+        Context gui = contents.length > INVENTORY_MAX_SIZE ?
+                new PlyContext(name) :
+                new Context(name);
         build(gui);
         return gui;
     }
@@ -153,14 +154,68 @@ public class GuiBuilder {
         }
     }
 
+    public static class PlyContext extends Context {
+
+        private final ItemStack[] slots = new ItemStack[BAG_MAX_SIZE];
+        private ItemStack[] plySlots;
+        private HumanEntity ply;
+
+        PlyContext(String name) {
+            super(name);
+        }
+
+        @Override
+        Inventory createInventory() {
+            return Bukkit.createInventory(this, INVENTORY_MAX_SIZE, name);
+        }
+
+        @Override
+        void fill(int slot) {
+            ItemStack itm = buttons.get(slot).icon;
+            if (slot < INVENTORY_MAX_SIZE) {
+                inventory.setItem(slot, itm);
+            } else {
+                setPlSlot(slot - INVENTORY_MAX_SIZE, itm);
+            }
+        }
+
+        public void setPlSlot(int slot, ItemStack item) {
+            int vSlot = slot < 27 ?
+                    slot + 9 :
+                    slot - 27;
+            slots[vSlot] = item;
+            if (ply != null) {
+                ply.getInventory().setItem(vSlot, item);
+            }
+        }
+
+        @Override
+        void closed(InventoryCloseEvent ev) {
+            if (plySlots != null) {
+                ev.getPlayer().getInventory().setStorageContents(plySlots);
+            }
+            ply = null;
+            super.closed(ev);// Must later than reset Items
+        }
+
+        @Override
+        void opened(InventoryOpenEvent ev) {
+            super.opened(ev);
+            ply = ev.getPlayer();
+            PlayerInventory plt = ev.getPlayer().getInventory();
+            plySlots = plt.getStorageContents();
+            plt.setStorageContents(slots);
+        }
+    }
+
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
     public static class Context implements InventoryHolder {
 
-        private final String name;
+        protected final String name;
         private GuiBuilder builder;
-        private List<Button> buttons;
-        private Inventory inventory;
-        private SelfContents selfContents;
+        protected List<Button> buttons;
+        protected Inventory inventory;
+        //        private SelfContents selfContents;
         private Consumer<InventoryCloseEvent> close;
         private Consumer<InventoryClickEvent> click;
         private boolean clicking;
@@ -205,16 +260,14 @@ public class GuiBuilder {
         @Override
         public Inventory getInventory() {
             if (inventory == null) {
-                int bSize = buttons.size();
-                if (bSize > INVENTORY_MAX_SIZE) {
-                    inventory = Bukkit.createInventory(this, INVENTORY_MAX_SIZE, name);
-                    selfContents = new SelfContents();
-                } else {
-                    inventory = Bukkit.createInventory(this, bSize, name);
-                }
+                inventory = createInventory();
                 fillAll();
             }
             return inventory;
+        }
+
+        Inventory createInventory() {
+            return Bukkit.createInventory(this, buttons.size(), name);
         }
 
         void fillAll() {
@@ -232,11 +285,7 @@ public class GuiBuilder {
         }
 
         void fill(int slot) {
-            if (slot < INVENTORY_MAX_SIZE) {
-                inventory.setItem(slot, buttons.get(slot).icon);
-            } else {
-                selfContents.setItem(slot - INVENTORY_MAX_SIZE, buttons.get(slot).icon);
-            }
+            inventory.setItem(slot, buttons.get(slot).icon);
         }
 
         void onClick(InventoryClickEvent event) {
@@ -261,9 +310,6 @@ public class GuiBuilder {
 
         void closed(InventoryCloseEvent e) {
             opened = false;
-            if (selfContents != null) {
-                e.getPlayer().getInventory().setStorageContents(selfContents.getOldItems());
-            }
             if (close != null) {
                 close.accept(e);
             }
@@ -271,9 +317,6 @@ public class GuiBuilder {
 
         void opened(InventoryOpenEvent event) {
             opened = true;
-            if (selfContents != null) {
-                SelfContents.setContents(event.getPlayer(), selfContents);
-            }
         }
 
         void refill(int slot) {
@@ -340,7 +383,7 @@ public class GuiBuilder {
             context.unlock();
         }
 
-        protected boolean isLocked() {
+        protected boolean locked() {
             return context.locked();
         }
 
@@ -374,33 +417,6 @@ public class GuiBuilder {
             } else {
                 player.closeInventory();
             }
-        }
-    }
-
-    @Data
-    static class SelfContents {
-
-        private final ItemStack[] items = new ItemStack[BAG_MAX_SIZE];
-        private ItemStack[] oldItems;
-        private HumanEntity entity;
-
-        public void setItem(int slot, ItemStack item) {
-            int vSlot = slot < 27 ?
-                    slot + 9 :
-                    slot - 27;
-            items[vSlot] = item;
-            if (entity != null) {
-                entity.getInventory().setItem(vSlot, item);
-            }
-        }
-
-        static void setContents(HumanEntity entity, SelfContents contents) {
-            contents.entity = entity;
-            PlayerInventory content = entity.getInventory();
-            if (contents.oldItems == null) {
-                contents.oldItems = content.getStorageContents();
-            }
-            content.setStorageContents(contents.items);
         }
     }
 
