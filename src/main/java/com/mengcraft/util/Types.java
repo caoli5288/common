@@ -4,6 +4,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import sun.misc.Unsafe;
 
 import java.lang.invoke.CallSite;
@@ -29,7 +31,11 @@ public class Types {
     private static final MethodHandles.Lookup LOOKUP = lookup();
 
     public static MethodHandles.Lookup lookupPrivileged(Class<?> cls) {
-        return LOOKUP.in(cls);
+        return lookupPrivileged().in(cls);
+    }
+
+    public static MethodHandles.Lookup lookupPrivileged() {
+        return LOOKUP;
     }
 
     @SneakyThrows
@@ -73,12 +79,9 @@ public class Types {
         return desc;
     }
 
+    @Nullable
     private static Method lookup(Class<?> cls, String methodName, Class<?>... types) {
-        Method method = MethodUtils.getMatchingMethod(cls, methodName, types);
-        if (method != null && !method.isAccessible()) {
-            method.setAccessible(true);
-        }
-        return method;
+        return MethodUtils.getMatchingMethod(cls, methodName, types);
     }
 
     @SneakyThrows
@@ -98,6 +101,23 @@ public class Types {
         return (T) ct.getTarget().invoke();
     }
 
+    @SneakyThrows
+    public static <T> T lambdaPrivileged(Object obj, Method method, Class<T> cls) {
+        Preconditions.checkState(cls.isInterface());
+        Method sam = sam(cls);
+        Objects.requireNonNull(sam, "Class is not SAM. " + cls);
+        // Workaround for private accessor
+        MethodHandles.Lookup lookup = lookupPrivileged(method.getDeclaringClass());
+        MethodHandle impl = lookup.unreflect(method);
+        CallSite ct = LambdaMetafactory.metafactory(lookup,
+                sam.getName(),
+                MethodType.methodType(cls, method.getDeclaringClass()),
+                MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
+                impl,
+                impl.type().dropParameterTypes(0, 1));
+        return (T) ct.getTarget().invoke(obj);
+    }
+
     static Method sam(Class<?> cls) {
         Method sam = null;
         for (Method method : cls.getMethods()) {
@@ -113,6 +133,7 @@ public class Types {
 
     static class Handle implements InvocationHandler {
 
+        private final Map<Method, MethodHandle> handles = Maps.newHashMap();
         private final Desc desc;
         private final Object obj;
 
@@ -122,41 +143,58 @@ public class Types {
         }
 
         @Override
-        public Object invoke(Object proxy, Method method, Object[] params) throws Exception {
-            Method accessor = desc.map.get(method);
-            if (accessor == null) {
-                accessor = lookup(desc.objCls, method.getName(), method.getParameterTypes());
-                checkNotNull(accessor, String.format("%s: [%s] not mapped", desc.objCls, method));
-                desc.mapStrict(accessor, method);
-            }
-            return accessor.invoke(obj, params);
+        @SneakyThrows
+        public Object invoke(Object proxy, Method method, Object[] allArgs) {
+            MethodHandle handle = handles.computeIfAbsent(method, __ -> lookupBinding(method));
+            return handle.invokeExact(allArgs);
+        }
+
+        private @NotNull MethodHandle lookupBinding(Method method) {
+            return desc.lookupHandle(method)
+                    .bindTo(obj)
+                    .asSpreader(Object[].class, method.getParameterCount())
+                    .asType(MethodType.methodType(Object.class, Object[].class));
         }
     }
 
     public static class Desc {
 
+        private final Map<Method, MethodHandle> handles = Maps.newHashMap();
         private final Class<?> objCls;
-        private final Map<Method, Method> map = Maps.newHashMap();
+        private final MethodHandles.Lookup lookup;
 
         Desc(Class<?> objCls) {
             this.objCls = objCls;
+            lookup = lookupPrivileged(objCls);
         }
 
+        @SneakyThrows
         public Desc map(String from, Class<?> cls, String to) {
             checkState(cls.isInterface(), String.format("class %s is not an interface", cls.getName()));
             for (Method method : cls.getMethods()) {
-                if (method.getName().equals(to)) {
-                    Method res = lookup(objCls, from, method.getParameterTypes());
-                    if (res != null) {
-                        mapStrict(res, method);
+                if (!Modifier.isStatic(method.getModifiers()) && method.getName().equals(to)) {
+                    Method call = lookup(objCls, from, method.getParameterTypes());
+                    if (call != null) {
+                        mapStrict(lookup.unreflect(call), method);
                     }
                 }
             }
             return this;
         }
 
-        void mapStrict(Method from, Method to) {
-            map.put(to, from);
+        MethodHandle lookupHandle(Method call) {
+            return handles.computeIfAbsent(call, __ -> lookupHandle0(call));
+        }
+
+        @SneakyThrows
+        private MethodHandle lookupHandle0(Method call) {
+            Method impl = lookup(objCls, call.getName(), call.getParameterTypes());
+            checkNotNull(impl, String.format("%s: [%s] not mapped", objCls, call));
+            return lookup.unreflect(impl);
+        }
+
+        void mapStrict(MethodHandle handle, Method call) {
+            handles.put(call, handle);
         }
     }
 }

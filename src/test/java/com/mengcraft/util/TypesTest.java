@@ -40,6 +40,12 @@ public class TypesTest {
         Types.lambdaPrivileged(method, Consumer.class).accept(new Bob());
     }
 
+    @Test
+    public void testAsLambdaBound() {
+        Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
+        Types.lambdaPrivileged(new Bob(), method, Runnable.class).run();
+    }
+
     public interface I1 {
 
         boolean after(Timestamp timestamp);
