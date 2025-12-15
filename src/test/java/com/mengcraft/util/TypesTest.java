@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class TypesTest {
 
@@ -43,7 +44,9 @@ public class TypesTest {
     @Test
     public void testAsLambdaBound() {
         Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
+        Method methodB = MethodUtils.getMatchingMethod(Bob.class, "b");
         Types.lambdaPrivileged(new Bob(), method, Runnable.class).run();
+        Assert.assertEquals("b", Types.lambdaPrivileged(new Bob(), methodB, Supplier.class).get());
     }
 
     public interface I1 {

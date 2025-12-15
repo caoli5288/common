@@ -21,6 +21,7 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -104,14 +105,18 @@ public class Types {
     @SneakyThrows
     public static <T> T lambdaPrivileged(Object obj, Method method, Class<T> cls) {
         Preconditions.checkState(cls.isInterface());
-        Method sam = sam(cls);
-        Objects.requireNonNull(sam, "Class is not SAM. " + cls);
-        // Workaround for private accessor
         MethodHandles.Lookup lookup = lookupPrivileged(method.getDeclaringClass());
         MethodHandle impl = lookup.unreflect(method);
+        return lambdaPrivileged(lookup, obj, impl, cls);
+    }
+
+    @SneakyThrows
+    private static <T> T lambdaPrivileged(MethodHandles.Lookup lookup, Object obj, MethodHandle impl, Class<T> cls) {
+        Method sam = sam(cls);
+        Objects.requireNonNull(sam, "Class is not SAM. " + cls);
         CallSite ct = LambdaMetafactory.metafactory(lookup,
                 sam.getName(),
-                MethodType.methodType(cls, method.getDeclaringClass()),
+                MethodType.methodType(cls, impl.type().parameterType(0)),
                 MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
                 impl,
                 impl.type().dropParameterTypes(0, 1));
@@ -131,9 +136,14 @@ public class Types {
         return sam;
     }
 
+    interface MethodHandleCaller {
+
+        Object call(Object[] allArgs) throws Throwable;
+    }
+
     static class Handle implements InvocationHandler {
 
-        private final Map<Method, MethodHandle> handles = Maps.newHashMap();
+        private final Map<Method, MethodHandleCaller> handles = Maps.newHashMap();
         private final Desc desc;
         private final Object obj;
 
@@ -145,15 +155,58 @@ public class Types {
         @Override
         @SneakyThrows
         public Object invoke(Object proxy, Method method, Object[] allArgs) {
-            MethodHandle handle = handles.computeIfAbsent(method, __ -> lookupBinding(method));
-            return handle.invokeExact(allArgs);
+            MethodHandleCaller handle = handles.computeIfAbsent(method, __ -> lookupBinding(method));
+            return handle.call(allArgs);
         }
 
-        private @NotNull MethodHandle lookupBinding(Method method) {
-            return desc.lookupHandle(method)
-                    .bindTo(obj)
-                    .asSpreader(Object[].class, method.getParameterCount())
-                    .asType(MethodType.methodType(Object.class, Object[].class));
+        private @NotNull MethodHandleCaller lookupBinding(Method method) {
+            MethodHandle handle = desc.lookupHandle(method);
+            switch (method.getParameterCount()) {
+                case 0: {
+                    if (method.getReturnType() == void.class) {
+                        Runnable l = lambdaPrivileged(desc.lookup, obj, handle, Runnable.class);
+                        return __ -> {
+                            l.run();
+                            return null;
+                        };
+                    } else {
+                        Supplier<?> l = lambdaPrivileged(desc.lookup, obj, handle, Supplier.class);
+                        return __ -> l.get();
+                    }
+                }
+                // TODO
+                case 1: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asType(MethodType.methodType(Object.class, Object.class));
+                    return l -> impl.invokeExact(l[0]);
+                }
+                case 2: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asType(MethodType.methodType(Object.class, Object.class, Object.class));
+                    return l -> impl.invokeExact(l[0], l[1]);
+                }
+                case 3: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asType(MethodType.methodType(Object.class, Object.class, Object.class, Object.class));
+                    return l -> impl.invokeExact(l[0], l[1], l[2]);
+                }
+                case 4: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asType(MethodType.methodType(Object.class, Object.class, Object.class, Object.class, Object.class));
+                    return l -> impl.invokeExact(l[0], l[1], l[2], l[3]);
+                }
+                case 5: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asType(MethodType.methodType(Object.class, Object.class, Object.class, Object.class, Object.class, Object.class));
+                    return l -> impl.invokeExact(l[0], l[1], l[2], l[3], l[4]);
+                }
+                default: {
+                    MethodHandle impl = handle.bindTo(obj)
+                            .asSpreader(Object[].class, method.getParameterCount())
+                            .asType(MethodType.methodType(Object.class, Object[].class));
+                    return impl::invokeExact;
+                }
+            }
         }
     }
 
