@@ -1,7 +1,9 @@
 package com.mengcraft.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.jetbrains.annotations.NotNull;
@@ -28,7 +30,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 public class Types {
 
-    private static final Map<Class<?>, Desc> METHODS_DESCRIPTORS = new HashMap<>();
     private static final MethodHandles.Lookup LOOKUP = lookup();
 
     public static MethodHandles.Lookup lookupPrivileged(Class<?> cls) {
@@ -72,10 +73,10 @@ public class Types {
     }
 
     public static Desc desc(Class<?> cls) {
-        Desc desc = METHODS_DESCRIPTORS.get(cls);
+        Desc desc = Desc.METHODS_DESCRIPTORS.get(cls);
         if (desc == null) {
             desc = new Desc(cls);
-            METHODS_DESCRIPTORS.put(desc.objCls, desc);
+            Desc.METHODS_DESCRIPTORS.put(desc.objCls, desc);
         }
         return desc;
     }
@@ -92,35 +93,46 @@ public class Types {
         Objects.requireNonNull(sam, "Class is not SAM class. " + cls);
         // Workaround for private accessor
         MethodHandles.Lookup lookup = lookupPrivileged(method.getDeclaringClass());
-        MethodHandle mh = lookup.unreflect(method);
-        CallSite ct = LambdaMetafactory.metafactory(lookup,
-                sam.getName(),
-                MethodType.methodType(cls),
-                MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
-                mh,
-                MethodType.methodType(method.getReturnType(), mh.type().parameterArray()));
-        return (T) ct.getTarget().invoke();
+        return (T) ofCallTarget(lookup, sam, method).invoke();
+    }
+
+    private static MethodHandle ofCallTarget(MethodHandles.Lookup lookup, Method sam, Method implMethod) throws Exception {
+        MethodHandle handle = Desc.CALL_TARGETS.get(sam, implMethod);
+        if (handle == null) {
+            MethodHandle impl = lookup.unreflect(implMethod);
+            CallSite ct = LambdaMetafactory.metafactory(lookup,
+                    sam.getName(),
+                    MethodType.methodType(sam.getDeclaringClass()),
+                    MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
+                    impl,
+                    impl.type());
+            Desc.CALL_TARGETS.put(sam, implMethod, handle = ct.getTarget());
+        }
+        return handle;
     }
 
     @SneakyThrows
     public static <T> T lambdaPrivileged(Object obj, Method method, Class<T> cls) {
         Preconditions.checkState(cls.isInterface());
         MethodHandles.Lookup lookup = lookupPrivileged(method.getDeclaringClass());
-        MethodHandle impl = lookup.unreflect(method);
-        return lambdaPrivileged(lookup, obj, impl, cls);
-    }
-
-    @SneakyThrows
-    private static <T> T lambdaPrivileged(MethodHandles.Lookup lookup, Object obj, MethodHandle impl, Class<T> cls) {
         Method sam = sam(cls);
         Objects.requireNonNull(sam, "Class is not SAM. " + cls);
-        CallSite ct = LambdaMetafactory.metafactory(lookup,
-                sam.getName(),
-                MethodType.methodType(cls, impl.type().parameterType(0)),
-                MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
-                impl,
-                impl.type().dropParameterTypes(0, 1));
-        return (T) ct.getTarget().invoke(obj);
+        return (T) ofBoundCallTarget(lookup, sam, method).invoke(obj);
+    }
+
+    private static MethodHandle ofBoundCallTarget(MethodHandles.Lookup lookup, Method sam, Method implMethod) throws Exception {
+        MethodHandle handle = Desc.BOUND_CALL_TARGETS.get(sam, implMethod);
+        if (handle == null) {
+            MethodHandle impl = lookup.unreflect(implMethod);
+            CallSite ct = LambdaMetafactory.metafactory(lookup,
+                    sam.getName(),
+                    MethodType.methodType(sam.getDeclaringClass(), impl.type().parameterType(0)),
+                    MethodType.methodType(sam.getReturnType(), sam.getParameterTypes()),
+                    impl,
+                    impl.type().dropParameterTypes(0, 1));
+            Desc.BOUND_CALL_TARGETS.put(sam, implMethod, handle = ct.getTarget());
+        }
+        return handle;
     }
 
     static Method sam(Class<?> cls) {
@@ -160,21 +172,21 @@ public class Types {
         }
 
         private @NotNull MethodHandleCaller lookupBinding(Method method) {
-            MethodHandle handle = desc.lookupHandle(method);
+            Map.Entry<Method, MethodHandle> lookupHandle = desc.lookupHandle(method);
+            MethodHandle handle = lookupHandle.getValue();
             switch (method.getParameterCount()) {
                 case 0: {
                     if (method.getReturnType() == void.class) {
-                        Runnable l = lambdaPrivileged(desc.lookup, obj, handle, Runnable.class);
+                        Runnable l = lambdaPrivileged(obj, lookupHandle.getKey(), Runnable.class);
                         return __ -> {
                             l.run();
                             return null;
                         };
                     } else {
-                        Supplier<?> l = lambdaPrivileged(desc.lookup, obj, handle, Supplier.class);
+                        Supplier<?> l = lambdaPrivileged(obj, lookupHandle.getKey(), Supplier.class);
                         return __ -> l.get();
                     }
                 }
-                // TODO
                 case 1: {
                     MethodHandle impl = handle.bindTo(obj)
                             .asType(MethodType.methodType(Object.class, Object.class));
@@ -212,7 +224,10 @@ public class Types {
 
     public static class Desc {
 
-        private final Map<Method, MethodHandle> handles = Maps.newHashMap();
+        private static final Map<Class<?>, Desc> METHODS_DESCRIPTORS = Maps.newHashMap();
+        private static final Table<Method, Method, MethodHandle> BOUND_CALL_TARGETS = HashBasedTable.create();
+        private static final Table<Method, Method, MethodHandle> CALL_TARGETS = HashBasedTable.create();
+        private final Map<Method, Map.Entry<Method, MethodHandle>> handles = Maps.newHashMap();
         private final Class<?> objCls;
         private final MethodHandles.Lookup lookup;
 
@@ -228,25 +243,25 @@ public class Types {
                 if (!Modifier.isStatic(method.getModifiers()) && method.getName().equals(to)) {
                     Method call = lookup(objCls, from, method.getParameterTypes());
                     if (call != null) {
-                        mapStrict(lookup.unreflect(call), method);
+                        mapStrict(Maps.immutableEntry(call, lookup.unreflect(call)), method);
                     }
                 }
             }
             return this;
         }
 
-        MethodHandle lookupHandle(Method call) {
+        Map.Entry<Method, MethodHandle> lookupHandle(Method call) {
             return handles.computeIfAbsent(call, __ -> lookupHandle0(call));
         }
 
         @SneakyThrows
-        private MethodHandle lookupHandle0(Method call) {
+        private Map.Entry<Method, MethodHandle> lookupHandle0(Method call) {
             Method impl = lookup(objCls, call.getName(), call.getParameterTypes());
             checkNotNull(impl, String.format("%s: [%s] not mapped", objCls, call));
-            return lookup.unreflect(impl);
+            return Maps.immutableEntry(impl, lookup.unreflect(impl));
         }
 
-        void mapStrict(MethodHandle handle, Method call) {
+        void mapStrict(Map.Entry<Method, MethodHandle> handle, Method call) {
             handles.put(call, handle);
         }
     }

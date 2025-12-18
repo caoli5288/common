@@ -39,6 +39,7 @@ public class TypesTest {
     public void testAsLambda() {
         Method method = MethodUtils.getMatchingMethod(Bob.class, "a");
         Types.lambdaPrivileged(method, Consumer.class).accept(new Bob());
+        Types.lambdaPrivileged(new Bob(), method, Runnable.class).run();
     }
 
     @Test
@@ -54,6 +55,8 @@ public class TypesTest {
         boolean after(Timestamp timestamp);
 
         void a();
+
+        int fun(int i);
 
         String b();
 
