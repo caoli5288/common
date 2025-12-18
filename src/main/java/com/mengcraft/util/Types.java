@@ -20,9 +20,12 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -176,7 +179,7 @@ public class Types {
             MethodHandle handle = lookupHandle.getValue();
             switch (method.getParameterCount()) {
                 case 0: {
-                    if (method.getReturnType() == void.class) {
+                    if (handle.type().returnType() == void.class) {
                         Runnable l = lambdaPrivileged(obj, lookupHandle.getKey(), Runnable.class);
                         return __ -> {
                             l.run();
@@ -188,14 +191,40 @@ public class Types {
                     }
                 }
                 case 1: {
-                    MethodHandle impl = handle.bindTo(obj)
-                            .asType(MethodType.methodType(Object.class, Object.class));
-                    return l -> impl.invokeExact(l[0]);
+                    MethodType implInfo = handle.type();
+                    if (implInfo.parameterType(1).isPrimitive()) {
+                        MethodHandle impl = handle.bindTo(obj)
+                                .asType(MethodType.methodType(Object.class, Object.class));
+                        return l -> impl.invokeExact(l[0]);
+                    }
+                    if (implInfo.returnType() == void.class) {
+                        Consumer<Object> l = lambdaPrivileged(obj, lookupHandle.getKey(), Consumer.class);
+                        return allArgs -> {
+                            l.accept(allArgs[0]);
+                            return null;
+                        };
+                    } else {
+                        Function<Object, Object> l = lambdaPrivileged(obj, lookupHandle.getKey(), Function.class);
+                        return allArgs -> l.apply(allArgs[0]);
+                    }
                 }
                 case 2: {
-                    MethodHandle impl = handle.bindTo(obj)
-                            .asType(MethodType.methodType(Object.class, Object.class, Object.class));
-                    return l -> impl.invokeExact(l[0], l[1]);
+                    MethodType implInfo = handle.type();
+                    if (implInfo.parameterType(1).isPrimitive() || implInfo.parameterType(2).isPrimitive()) {
+                        MethodHandle impl = handle.bindTo(obj)
+                                .asType(MethodType.methodType(Object.class, Object.class, Object.class));
+                        return l -> impl.invokeExact(l[0], l[1]);
+                    }
+                    if (implInfo.returnType() == void.class) {
+                        BiConsumer<Object, Object> l = lambdaPrivileged(obj, lookupHandle.getKey(), BiConsumer.class);
+                        return allArgs -> {
+                            l.accept(allArgs[0], allArgs[1]);
+                            return null;
+                        };
+                    } else {
+                        BiFunction<Object, Object, Object> l = lambdaPrivileged(obj, lookupHandle.getKey(), BiFunction.class);
+                        return allArgs -> l.apply(allArgs[0], allArgs[1]);
+                    }
                 }
                 case 3: {
                     MethodHandle impl = handle.bindTo(obj)
