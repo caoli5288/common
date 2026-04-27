@@ -9,8 +9,9 @@ import java.util.function.Function;
 
 public class StrTemplate {
 
-    private final List<Function<Function<String, String>, String>> all = Lists.newArrayList();
     private final String template;
+    private String[] allParts;
+    private boolean[] allKeys;
 
     public StrTemplate(@NotNull String template, @NotNull String left, @NotNull String right) {
         this.template = template;
@@ -18,43 +19,58 @@ public class StrTemplate {
     }
 
     private void loadAll(@NotNull String left, @NotNull String right) {
+        List<String> allParts = Lists.newArrayList();
+        List<Boolean> allKeys = Lists.newArrayList();
         int len = 0;
         while (len < template.length()) {
             int beg = template.indexOf(left, len);
             if (beg == -1) {
                 String text = template.substring(len);
-                all.add(__ -> text);
+                allParts.add(text);
+                allKeys.add(false);
                 break;
             }
 
             if (beg > len) {
                 String text = template.substring(len, beg);
-                all.add(__ -> text);
+                allParts.add(text);
+                allKeys.add(false);
             }
 
             int lenEnd = beg + left.length();
             int end = template.indexOf(right, lenEnd);
             if (end == -1) {
                 String text = template.substring(beg);
-                all.add(__ -> text);
+                allParts.add(text);
+                allKeys.add(false);
                 break;
             }
 
             String key = template.substring(lenEnd, end);
 //            String placeholder = template.substring(fd, end + right.length());
-            all.add(f -> f.apply(key));
+            allParts.add(key);
+            allKeys.add(true);
             len = end + right.length();
+        }
+        this.allParts = allParts.toArray(new String[0]);
+        this.allKeys = new boolean[allKeys.size()];
+        for (int i = 0; i < allKeys.size(); i++) {
+            this.allKeys[i] = allKeys.get(i);
         }
     }
 
     public @NotNull String replace(@NotNull Map<String, String> values) {
-        return replace(key -> values.getOrDefault(key, ""));
+        StringBuilder line = new StringBuilder(template.length());
+        for (int i = 0; i < allParts.length; i++) {
+            line.append(allKeys[i] ? values.getOrDefault(allParts[i], "") : allParts[i]);
+        }
+        return line.toString();
     }
 
     public @NotNull String replace(@NotNull Function<String, String> values) {
         StringBuilder line = new StringBuilder(template.length());
-        for (Function<Function<String, String>, String> f : all) {
-            line.append(f.apply(values));
+        for (int i = 0; i < allParts.length; i++) {
+            line.append(allKeys[i] ? values.apply(allParts[i]) : allParts[i]);
         }
         return line.toString();
     }
