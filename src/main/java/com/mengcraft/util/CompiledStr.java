@@ -1,12 +1,11 @@
 package com.mengcraft.util;
 
-import com.google.common.collect.Lists;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.clip.placeholderapi.expansion.manager.LocalExpansionManager;
 import org.bukkit.OfflinePlayer;
 
-import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,7 +13,9 @@ import java.util.regex.Pattern;
 public class CompiledStr implements Function<OfflinePlayer, String> {
 
     private final String template;
-    private List<Function<OfflinePlayer, String>> list;
+    private String[] texts;
+    private PlaceholderExpansion[] expansions;
+    private String[] commands;
 
     private CompiledStr(String template) {
         this.template = template;
@@ -32,15 +33,22 @@ public class CompiledStr implements Function<OfflinePlayer, String> {
 
     @Override
     public String apply(OfflinePlayer player) {
-        StringBuilder sb = new StringBuilder();
-        for (Function<OfflinePlayer, String> fun : list) {
-            sb.append(fun.apply(player));
+        StringBuilder sb = new StringBuilder(template.length());
+        for (int i = 0; i < texts.length; i++) {
+            PlaceholderExpansion it = expansions[i];
+            if (it == null) {
+                sb.append(texts[i]);
+            } else {
+                sb.append(it.onRequest(player, commands[i]));
+            }
         }
         return sb.toString();
     }
 
     private void compile(Style style) {
-        list = Lists.newArrayList();
+        ArrayList<String> textList = new ArrayList<>();
+        ArrayList<PlaceholderExpansion> expansionList = new ArrayList<>();
+        ArrayList<String> commandList = new ArrayList<>();
         LocalExpansionManager lem = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager();
         Matcher mat = style.matcher(template);
         int seg = 0;
@@ -48,20 +56,29 @@ public class CompiledStr implements Function<OfflinePlayer, String> {
             int f = mat.start();
             if (seg != f) {
                 String segment = template.substring(seg, f);
-                list.add(__ -> segment);
+                textList.add(segment);
+                expansionList.add(null);
+                commandList.add(null);
             }
             seg = mat.end();
             String exp = mat.group(1);
             String command = mat.group(2);
             PlaceholderExpansion expansion = lem.getExpansion(exp);
             if (expansion != null) {
-                list.add(it -> expansion.onRequest(it, command));
+                textList.add(null);
+                expansionList.add(expansion);
+                commandList.add(command);
             }
         }
         if (seg != template.length()) {
             String segment = template.substring(seg);
-            list.add(__ -> segment);
+            textList.add(segment);
+            expansionList.add(null);
+            commandList.add(null);
         }
+        texts = textList.toArray(new String[0]);
+        expansions = expansionList.toArray(new PlaceholderExpansion[0]);
+        commands = commandList.toArray(new String[0]);
     }
 
     public enum Style {
