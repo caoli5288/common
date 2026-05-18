@@ -110,11 +110,8 @@ public class GuiBuilder {
         gui.close = onClose;
         gui.buttons = Lists.newArrayList();
         for (Character symbol : contents) {
-            if (buttons.containsKey(symbol)) {
-                gui.buttons.add(buttons.get(symbol).get());
-            } else {
-                gui.buttons.add(EMPTY_BUTTON);
-            }
+            Supplier<Button> btn = buttons.get(symbol);
+            gui.buttons.add(btn == null ? EMPTY_BUTTON : btn.get());
         }
     }
 
