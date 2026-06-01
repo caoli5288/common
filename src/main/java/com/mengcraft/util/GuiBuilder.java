@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
@@ -43,6 +44,7 @@ public class GuiBuilder {
     private String name = "";
     private char[] contents;
     private Consumer<InventoryClickEvent> onClick;
+    private Consumer<InventoryClickEvent> onDrop;
     private Consumer<InventoryCloseEvent> onClose;
 
     public GuiBuilder name(String name) {
@@ -53,6 +55,11 @@ public class GuiBuilder {
 
     public GuiBuilder onClick(Consumer<InventoryClickEvent> onClick) {
         this.onClick = onClick;
+        return this;
+    }
+
+    public GuiBuilder onDrop(Consumer<InventoryClickEvent> onDrop) {
+        this.onDrop = onDrop;
         return this;
     }
 
@@ -106,8 +113,9 @@ public class GuiBuilder {
 
     void build(Context gui) {
         gui.builder = this;
-        gui.click = onClick;
-        gui.close = onClose;
+        gui.onClick = onClick;
+        gui.onDrop = onDrop;
+        gui.onClose = onClose;
         gui.buttons = Lists.newArrayList();
         for (Character symbol : contents) {
             Supplier<Button> btn = buttons.get(symbol);
@@ -130,8 +138,9 @@ public class GuiBuilder {
     }
 
     @AllArgsConstructor
-    public static class Button {
+    public static class Button implements Consumer<InventoryClickEvent> {
 
+        @Getter
         private final ItemStack icon;
         private Consumer<InventoryClickEvent> onClick;
 
@@ -144,9 +153,10 @@ public class GuiBuilder {
             return this;
         }
 
-        void onClick(InventoryClickEvent e) {
+        @Override
+        public void accept(InventoryClickEvent evt) {
             if (onClick != null) {
-                onClick.accept(e);
+                onClick.accept(evt);
             }
         }
     }
@@ -187,17 +197,17 @@ public class GuiBuilder {
         }
 
         @Override
-        void closed(InventoryCloseEvent ev) {
+        void onClose(InventoryCloseEvent ev) {
             if (plySlots != null) {
                 ev.getPlayer().getInventory().setStorageContents(plySlots);
             }
             ply = null;
-            super.closed(ev);// Must later than reset Items
+            super.onClose(ev);// Must later than reset Items
         }
 
         @Override
-        void opened(InventoryOpenEvent ev) {
-            super.opened(ev);
+        void onOpen(InventoryOpenEvent ev) {
+            super.onOpen(ev);
             ply = ev.getPlayer();
             PlayerInventory plt = ev.getPlayer().getInventory();
             plySlots = plt.getStorageContents();
@@ -213,8 +223,9 @@ public class GuiBuilder {
         protected List<Button> buttons;
         protected Inventory inventory;
         //        private SelfContents selfContents;
-        private Consumer<InventoryCloseEvent> close;
-        private Consumer<InventoryClickEvent> click;
+        private Consumer<InventoryCloseEvent> onClose;
+        private Consumer<InventoryClickEvent> onClick;
+        private Consumer<InventoryClickEvent> onDrop;
         private boolean clicking;
         private boolean locked;
         private long lockMillis;
@@ -291,28 +302,34 @@ public class GuiBuilder {
                 return;
             }
             int slot = event.getRawSlot();
-            if (slot >= 0) {
-                if (slot < buttons.size()) {
-                    buttons.get(slot).onClick(event);
-                } else if (click != null) {
-                    try {
-                        clicking = true;
-                        click.accept(event);
-                    } finally {
-                        clicking = false;
-                    }
+            if (slot < 0) {
+                if (onDrop != null) {
+                    callButton(onDrop, event);
                 }
+            } else if (slot < buttons.size()) {
+                callButton(buttons.get(slot), event);
+            } else if (onClick != null) {
+                callButton(onClick, event);
             }
         }
 
-        void closed(InventoryCloseEvent e) {
+        void callButton(Consumer<InventoryClickEvent> callable, InventoryClickEvent event) {
+            clicking = true;
+            try {
+                callable.accept(event);
+            } finally {
+                clicking = false;
+            }
+        }
+
+        void onClose(InventoryCloseEvent e) {
             opened = false;
-            if (close != null) {
-                close.accept(e);
+            if (onClose != null) {
+                onClose.accept(e);
             }
         }
 
-        void opened(InventoryOpenEvent event) {
+        void onOpen(InventoryOpenEvent event) {
             opened = true;
         }
 
@@ -431,7 +448,7 @@ public class GuiBuilder {
         public void onInventoryClose(InventoryCloseEvent event) {
             InventoryHolder gui = event.getInventory().getHolder();
             if (gui instanceof Context) {
-                ((Context) gui).closed(event);
+                ((Context) gui).onClose(event);
             }
         }
 
@@ -439,7 +456,7 @@ public class GuiBuilder {
         public void onInventoryOpen(InventoryOpenEvent event) {
             InventoryHolder gui = event.getInventory().getHolder();
             if (gui instanceof Context) {
-                ((Context) gui).opened(event);
+                ((Context) gui).onOpen(event);
             }
         }
     }
