@@ -13,6 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -177,8 +178,8 @@ public class GuiBuilder {
         }
 
         @Override
-        void fill(int slot) {
-            ItemStack itm = buttons.get(slot).icon;
+        void fill(int slot, Button btn) {
+            ItemStack itm = btn.icon;
             if (slot < INVENTORY_MAX_SIZE) {
                 inventory.setItem(slot, itm);
             } else {
@@ -206,10 +207,9 @@ public class GuiBuilder {
         }
 
         @Override
-        void onOpen(InventoryOpenEvent ev) {
-            super.onOpen(ev);
-            ply = ev.getPlayer();
-            PlayerInventory plt = ev.getPlayer().getInventory();
+        void onPlayerOpen(Player ply) {
+            this.ply = ply;
+            PlayerInventory plt = ply.getInventory();
             plySlots = plt.getStorageContents();
             plt.setStorageContents(slots);
         }
@@ -229,7 +229,6 @@ public class GuiBuilder {
         private boolean clicking;
         private boolean locked;
         private long lockMillis;
-        private boolean opened;
 
         public void lock() {
             locked = true;
@@ -288,12 +287,12 @@ public class GuiBuilder {
 //                }
                 // Comp and set items is meaningless because of server just send all items in cancelled clicks
                 // Simply set item without comp
-                fill(slot);
+                fill(slot, buttons.get(slot));
             }
         }
 
-        void fill(int slot) {
-            inventory.setItem(slot, buttons.get(slot).icon);
+        void fill(int slot, Button btn) {
+            inventory.setItem(slot, btn.icon);
         }
 
         void onClick(InventoryClickEvent event) {
@@ -323,14 +322,12 @@ public class GuiBuilder {
         }
 
         void onClose(InventoryCloseEvent e) {
-            opened = false;
             if (onClose != null) {
                 onClose.accept(e);
             }
         }
 
-        void onOpen(InventoryOpenEvent event) {
-            opened = true;
+        void onPlayerOpen(Player ply) {
         }
 
         void refill(int slot) {
@@ -340,7 +337,12 @@ public class GuiBuilder {
                     EMPTY_BUTTON :
                     supplier.get();
             buttons.set(slot, fillButton);
-            fill(slot);
+            fill(slot, fillButton);
+        }
+
+        void refill(int slot, Button btn) {
+            buttons.set(slot, btn);
+            fill(slot, btn);
         }
     }
 
@@ -401,10 +403,6 @@ public class GuiBuilder {
             return context.locked();
         }
 
-        protected boolean isClosed() {
-            return !context.opened;
-        }
-
         protected void refill(Player player) {
             reload(player);
             context.fillAll();
@@ -412,6 +410,10 @@ public class GuiBuilder {
 
         protected void refill(int slot) {
             context.refill(slot);
+        }
+
+        protected void refill(int slot, Button btn) {
+            context.refill(slot, btn);
         }
 
         protected void reload(Player player) {
@@ -452,11 +454,11 @@ public class GuiBuilder {
             }
         }
 
-        @EventHandler
+        @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
         public void onInventoryOpen(InventoryOpenEvent event) {
             InventoryHolder gui = event.getInventory().getHolder();
             if (gui instanceof Context) {
-                ((Context) gui).onOpen(event);
+                ((Context) gui).onPlayerOpen((Player) event.getPlayer());
             }
         }
     }
